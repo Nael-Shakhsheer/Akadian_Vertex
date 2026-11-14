@@ -47,18 +47,19 @@ export class IndoorRouting {
 
   local(msg) {
     const r = this.router, b = this.building;
-    const goal = r.snap(msg.floor, msg.label), opts = { stepFree: msg.stepFree };
+    const goal = r.snap(msg.floor, msg.label);
+    const opts = { stepFree: msg.stepFree, diagonal: msg.diagonal, bidirectional: msg.bidirectional };
     if (msg.type === 'entrances') return b.entrances.map((e) => r.route(r.snap(e.floor, e.start), goal, opts));
     return r.route(r.snap(msg.from.floor, msg.from.start), goal, opts);
   }
 
-  /** Indoor legs from every entrance to a room (array, in b.entrances order). */
-  fromEntrances(room, stepFree) {
-    return this.ask({ type: 'entrances', floor: room.floor, label: room.label, stepFree });
+  /** Indoor legs from every entrance to a room (array, in b.entrances order). `opts`: see Router.routeTo. */
+  fromEntrances(room, stepFree, opts = {}) {
+    return this.ask({ type: 'entrances', floor: room.floor, label: room.label, stepFree, ...opts });
   }
 
   /** Indoor legs from one entrance to a room. */
-  fromEntrance(entrance, room, stepFree) {
-    return this.ask({ type: 'one', from: { floor: entrance.floor, start: entrance.start }, floor: room.floor, label: room.label, stepFree });
+  fromEntrance(entrance, room, stepFree, opts = {}) {
+    return this.ask({ type: 'one', from: { floor: entrance.floor, start: entrance.start }, floor: room.floor, label: room.label, stepFree, ...opts });
   }
 }

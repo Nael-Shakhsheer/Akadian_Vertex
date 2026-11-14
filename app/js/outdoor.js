@@ -1,8 +1,29 @@
 // Outdoor map: the campus in 3D (extruded building shells), everything around it flat 2D.
 // Uses MapLibre GL (global `maplibregl`) over darkened OpenStreetMap raster tiles.
 
-const ACCENT = '#f0a04a';
-const NEUTRAL = '#2b2f37';
+// The accent comes from the appearance the app booted with (js/themes.js sets it on <html>).
+const cssVar = (name, fallback) =>
+  (getComputedStyle(document.documentElement).getPropertyValue(name) || '').trim() || fallback;
+const BASE = document.documentElement.dataset.base === 'light' ? 'light' : 'dark';
+const ACCENT = cssVar('--accent', '#f0a04a');
+const NEUTRAL = BASE === 'light' ? '#c3c8d2' : '#2b2f37';
+
+// Basemap cartography per base. The campus itself is drawn from our own data on top of this; these are the
+// surroundings, which stay quiet either way.
+const MAP = {
+  dark: {
+    bg: '#15171c', wood: '#18201b', grass: '#171c19', park: '#171e1a', landuse: '#181a1f',
+    water: '#0f1b26', waterway: '#13283a', bldg: '#1d2026', bldgEdge: '#262a31',
+    path: '#2a2e36', minor: '#292d35', mid: '#30343d', major: '#383d48', rail: '#2a2d34',
+    label: '#9aa0aa', bldgLabel: '#e9ebef', halo: '#16181d', sky: '#16181d', horizon: '#22252c', lightColor: '#ffffff', lightIntensity: 0.32,
+  },
+  light: {
+    bg: '#eef1f5', wood: '#dfe9dc', grass: '#e6eee2', park: '#e3ede4', landuse: '#e9ebef',
+    water: '#c7dcef', waterway: '#9fc2de', bldg: '#dcdfe6', bldgEdge: '#b9bec8',
+    path: '#d2d6de', minor: '#ffffff', mid: '#ffffff', major: '#ffffff', rail: '#c6cad2',
+    label: '#4a5160', bldgLabel: '#2a2f3a', halo: '#ffffff', sky: '#dce4ee', horizon: '#eef1f5', lightColor: '#ffffff', lightIntensity: 0.55,
+  },
+}[BASE];
 
 // Color filter categories. Buildings and flat areas (lots, fields) share them.
 export const CATEGORIES = [
@@ -56,8 +77,8 @@ export class OutdoorMap {
         version: 8,
         // fonts and tiles are served by our own engine (downloaded once for the campus area)
         glyphs: `${base}/fonts/{fontstack}/{range}.pbf`,
-        light: { anchor: 'viewport', color: '#ffffff', intensity: 0.32, position: [1.3, 200, 35] },
-        sky: { 'sky-color': '#16181d', 'horizon-color': '#22252c', 'fog-color': '#16181d', 'sky-horizon-blend': 0.6, 'horizon-fog-blend': 0.7, 'fog-ground-blend': 0.85, 'atmosphere-blend': 0 },
+        light: { anchor: 'viewport', color: MAP.lightColor, intensity: MAP.lightIntensity, position: [1.3, 200, 35] },
+        sky: { 'sky-color': MAP.sky, 'horizon-color': MAP.horizon, 'fog-color': MAP.sky, 'sky-horizon-blend': 0.6, 'horizon-fog-blend': 0.7, 'fog-ground-blend': 0.85, 'atmosphere-blend': 0 },
         sources: {
           // vector basemap: we style every layer ourselves, so the world outside campus stays quiet and flat
           omt: { type: 'vector', tiles: [`${base}/tiles/${campusId}/{z}/{x}/{y}.pbf`], minzoom: 10, maxzoom: 14,
@@ -131,7 +152,7 @@ export class OutdoorMap {
           { id: 'stop-names', type: 'symbol', source: 'stops', minzoom: 16.5,
             filter: ['any', ['get', 'shuttle'], ['>=', ['get', 'nlines'], 3]],
             layout: { 'text-field': ['get', 'short'], 'text-font': ['Noto Sans Bold'], 'text-size': 11, 'text-offset': [0, 1.6], 'text-anchor': 'top', 'text-max-width': 10 },
-            paint: { 'text-color': TRANSIT, 'text-halo-color': '#16181d', 'text-halo-width': 1.4 } },
+            paint: { 'text-color': TRANSIT, 'text-halo-color': MAP.halo, 'text-halo-width': 1.4 } },
           // food & coffee (spots that share a building are grouped until you zoom in)
           { id: 'food-group', type: 'symbol', source: 'foodGroups', maxzoom: FOOD_SPLIT_ZOOM,
             layout: { 'icon-image': 'food-meal', 'icon-size': ['interpolate', ['linear'], ['zoom'], 14, 0.36, 17, 0.55],
@@ -148,7 +169,7 @@ export class OutdoorMap {
           { id: 'food-names', type: 'symbol', source: 'food', minzoom: 17.2,
             filter: ['any', ['!', ['get', 'grouped']], ['>=', ['zoom'], FOOD_SPLIT_ZOOM]],
             layout: { 'text-field': ['get', 'name'], 'text-font': ['Noto Sans Bold'], 'text-size': 11, 'text-offset': [0, 1.4], 'text-anchor': 'top', 'text-padding': 2 },
-            paint: { 'text-color': FOOD, 'text-halo-color': '#16181d', 'text-halo-width': 1.4 } },
+            paint: { 'text-color': FOOD, 'text-halo-color': MAP.halo, 'text-halo-width': 1.4 } },
           // the step you tapped in the directions
           { id: 'focus-halo', type: 'circle', source: 'focus', paint: { 'circle-radius': 18, 'circle-color': '#ffd29a', 'circle-opacity': 0.25, 'circle-blur': 0.5 } },
           { id: 'focus', type: 'circle', source: 'focus', paint: { 'circle-radius': 6, 'circle-color': '#ffffff', 'circle-stroke-color': ACCENT, 'circle-stroke-width': 3 } },
@@ -156,11 +177,11 @@ export class OutdoorMap {
           { id: 'bld-names', type: 'symbol', source: 'labels', minzoom: 16, filter: ['==', ['get', 'type'], 'building'],
             layout: { 'text-field': ['get', 'name'], 'text-font': ['Noto Sans Bold'], 'text-size': ['interpolate', ['linear'], ['zoom'], 16, 10.5, 19, 13.5],
               'text-max-width': 8, 'text-padding': 4, 'symbol-sort-key': ['-', 0, ['get', 'size']], 'text-variable-anchor': ['center', 'top', 'bottom'] },
-            paint: { 'text-color': '#e9ebef', 'text-halo-color': '#16181d', 'text-halo-width': 1.4,
+            paint: { 'text-color': MAP.bldgLabel, 'text-halo-color': MAP.halo, 'text-halo-width': 1.4,
               'text-opacity': ['interpolate', ['linear'], ['zoom'], 16, ['case', ['>', ['get', 'size'], 2500], 1, 0], 17, 1] } },
           { id: 'area-names', type: 'symbol', source: 'labels', minzoom: 17, filter: ['==', ['get', 'type'], 'area'],
             layout: { 'text-field': ['get', 'name'], 'text-font': ['Noto Sans Regular'], 'text-size': 11, 'text-padding': 4 },
-            paint: { 'text-color': this.catColor('#9aa0aa'), 'text-halo-color': '#16181d', 'text-halo-width': 1.3,
+            paint: { 'text-color': this.catColor(MAP.label), 'text-halo-color': MAP.halo, 'text-halo-width': 1.3,
               'text-opacity': ['interpolate', ['linear'], ['zoom'], 17, 0, 17.6, 1] } },
         ],
       },
@@ -310,7 +331,7 @@ export class OutdoorMap {
     set('bld-glow', 'line-color', this.catColor('#6b6f78'));
     set('bld-edge', 'line-color', this.catColor('#6b6f78'));
     set('bld-3d', 'fill-extrusion-color', this.extrusionColor());
-    set('area-names', 'text-color', this.catColor('#9aa0aa'));
+    set('area-names', 'text-color', this.catColor(MAP.label));
     for (const [cat, ids] of Object.entries(POINT_LAYERS)) {
       for (const id of ids) if (this.map.getLayer(id)) this.map.setLayoutProperty(id, 'visibility', this.enabled.has(cat) ? 'visible' : 'none');
     }
@@ -404,6 +425,16 @@ export class OutdoorMap {
     this.map.setPaintProperty('transit-line', 'line-width', ref
       ? ['case', ['==', ['get', 'ref'], ref], ['interpolate', ['linear'], ['zoom'], 13, 2.5, 18, 6], ['interpolate', ['linear'], ['zoom'], 13, 1, 18, 3]]
       : ['interpolate', ['linear'], ['zoom'], 13, 1, 18, 3]);
+  }
+
+  /** Repaint the accent-coloured layers after the accent changes (no reload needed). */
+  setAccent(hex) {
+    if (!this.map.isStyleLoaded()) return;
+    const set = (layer, prop, v) => this.map.getLayer(layer) && this.map.setPaintProperty(layer, prop, v);
+    set('campus-fill', 'fill-color', hex);
+    set('campus-line', 'line-color', hex);
+    set('route-glow', 'line-color', hex);
+    set('focus-halo', 'circle-color', hex);
   }
 
   setRoute(lls) {
@@ -560,7 +591,7 @@ function addFoodIcons(map, id) {
   const g = c.getContext('2d');
   g.beginPath(); g.arc(S / 2, S / 2, S / 2 - 3, 0, Math.PI * 2);
   g.fillStyle = FOOD; g.fill();
-  g.lineWidth = 4; g.strokeStyle = '#16181d'; g.stroke();
+  g.lineWidth = 4; g.strokeStyle = MAP.halo; g.stroke();
   g.fillStyle = g.strokeStyle = '#3a0f22';
   g.lineCap = 'round';
   if (id === 'food-meal') {
@@ -585,7 +616,7 @@ function addStopIcons(map, id) {
   const g = c.getContext('2d');
   g.beginPath(); g.arc(S / 2, S / 2, S / 2 - 3, 0, Math.PI * 2);
   g.fillStyle = TRANSIT; g.fill();
-  g.lineWidth = 4; g.strokeStyle = id === 'stop-shuttle' ? '#f0a04a' : '#16181d'; g.stroke();
+  g.lineWidth = 4; g.strokeStyle = id === 'stop-shuttle' ? ACCENT : MAP.halo; g.stroke();
   // bus body, windscreen, wheels
   g.fillStyle = '#10302c';
   roundRect(g, 18, 15, 28, 30, 6); g.fill();
@@ -612,25 +643,25 @@ function basemapLayers() {
   });
   const name = ['coalesce', ['get', 'name:en'], ['get', 'name']];
   return [
-    { id: 'bg', type: 'background', paint: { 'background-color': '#15171c' } },
+    { id: 'bg', type: 'background', paint: { 'background-color': MAP.bg } },
     { id: 'landcover', type: 'fill', source: 'omt', 'source-layer': 'landcover',
       filter: ['in', ['get', 'class'], ['literal', ['grass', 'wood', 'farmland', 'wetland']]],
-      paint: { 'fill-color': ['match', ['get', 'class'], 'wood', '#18201b', '#171c19'], 'fill-opacity': 0.9 } },
-    { id: 'park', type: 'fill', source: 'omt', 'source-layer': 'park', paint: { 'fill-color': '#171e1a', 'fill-opacity': 0.8 } },
+      paint: { 'fill-color': ['match', ['get', 'class'], 'wood', MAP.wood, MAP.grass], 'fill-opacity': 0.9 } },
+    { id: 'park', type: 'fill', source: 'omt', 'source-layer': 'park', paint: { 'fill-color': MAP.park, 'fill-opacity': 0.8 } },
     { id: 'landuse', type: 'fill', source: 'omt', 'source-layer': 'landuse',
       filter: ['in', ['get', 'class'], ['literal', ['residential', 'commercial', 'industrial', 'retail']]],
-      paint: { 'fill-color': '#181a1f' } },
-    { id: 'water', type: 'fill', source: 'omt', 'source-layer': 'water', paint: { 'fill-color': '#0f1b26' } },
-    { id: 'waterway', type: 'line', source: 'omt', 'source-layer': 'waterway', paint: { 'line-color': '#13283a', 'line-width': 1.2 } },
+      paint: { 'fill-color': MAP.landuse } },
+    { id: 'water', type: 'fill', source: 'omt', 'source-layer': 'water', paint: { 'fill-color': MAP.water } },
+    { id: 'waterway', type: 'line', source: 'omt', 'source-layer': 'waterway', paint: { 'line-color': MAP.waterway, 'line-width': 1.2 } },
     // flat buildings everywhere (the campus gets its own 3D shells on top)
     { id: 'omt-building', type: 'fill', source: 'omt', 'source-layer': 'building', minzoom: 14,
-      paint: { 'fill-color': '#1d2026', 'fill-outline-color': '#262a31', 'fill-opacity': ['interpolate', ['linear'], ['zoom'], 14, 0, 15.5, 1] } },
-    road('paths', ['path', 'track'], '#2a2e36', [15, 0.5, 18, 2.2], { 'line-dasharray': [1.5, 1.5] }),
-    road('minor', ['minor', 'service'], '#292d35', [13, 0.4, 18, 7]),
-    road('mid', ['tertiary', 'secondary'], '#30343d', [10, 0.6, 18, 13]),
-    road('major', ['primary', 'trunk', 'motorway'], '#383d48', [8, 0.8, 18, 18]),
+      paint: { 'fill-color': MAP.bldg, 'fill-outline-color': MAP.bldgEdge, 'fill-opacity': ['interpolate', ['linear'], ['zoom'], 14, 0, 15.5, 1] } },
+    road('paths', ['path', 'track'], MAP.path, [15, 0.5, 18, 2.2], { 'line-dasharray': [1.5, 1.5] }),
+    road('minor', ['minor', 'service'], MAP.minor, [13, 0.4, 18, 7]),
+    road('mid', ['tertiary', 'secondary'], MAP.mid, [10, 0.6, 18, 13]),
+    road('major', ['primary', 'trunk', 'motorway'], MAP.major, [8, 0.8, 18, 18]),
     { id: 'rail', type: 'line', source: 'omt', 'source-layer': 'transportation', filter: ['==', ['get', 'class'], 'rail'],
-      paint: { 'line-color': '#2a2d34', 'line-width': 1, 'line-dasharray': [3, 3] } },
+      paint: { 'line-color': MAP.rail, 'line-width': 1, 'line-dasharray': [3, 3] } },
     // road names: only once you're zoomed in; main roads at 16, campus streets at 17, footpaths never
     ...[['road-names', ['primary', 'secondary', 'tertiary', 'trunk'], 16], ['street-names', ['minor', 'service'], 17]].map(([id, classes, zmin]) => ({
       id, type: 'symbol', source: 'omt', 'source-layer': 'transportation_name', minzoom: zmin,

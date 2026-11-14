@@ -1,12 +1,16 @@
 // Parking auto-prompt: fires once after driving into a lot, never for walking in.  Run: node tests/test_parking.mjs
-import { readFileSync } from 'node:fs';
+import { readFileSync, existsSync } from 'node:fs';
 import { pathToFileURL } from 'node:url';
 import assert from 'node:assert/strict';
 
 globalThis.localStorage = { s: {}, getItem(k) { return this.s[k] ?? null; }, setItem(k, v) { this.s[k] = v; }, removeItem(k) { delete this.s[k]; } };
 const root = new URL('..', import.meta.url);
 const { ParkingSpot, ParkDetector, describe } = await import(new URL('app/js/parking.js', root));
-const campus = JSON.parse(readFileSync(new URL('engine_data/published/campus/gmu.json', root), 'utf8'));
+// the engine's published copy if it is there, otherwise the static export that ships in the repo
+const campusFile = ['engine_data/published/campus/gmu.json', 'docs/data/campus/gmu.json']
+  .map((p) => new URL(p, root)).find((u) => existsSync(u));
+assert.ok(campusFile, 'no published GMU campus to test against');
+const campus = JSON.parse(readFileSync(campusFile, 'utf8'));
 
 const deck = campus.buildings.find((b) => b.cat === 'parking');
 const n = deck.ring.length - 1;

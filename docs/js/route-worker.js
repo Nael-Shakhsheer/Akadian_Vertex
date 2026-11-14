@@ -1,6 +1,7 @@
 // Indoor routing off the main thread, so picking a room never freezes the screen.
 // Messages in:  { type: 'init', url }   { id, type: 'entrances', floor, label, stepFree }
 //               { id, type: 'one', from: {floor, start}, floor, label, stepFree }
+// Both also take the Router.routeTo settings: diagonal, bidirectional.
 // Messages out: { type: 'ready' } | { id, result } | { id, error }
 import { loadBuilding } from './building.js';
 import { Router } from './router.js';
@@ -16,7 +17,7 @@ self.onmessage = async ({ data }) => {
       return;
     }
     const goal = router.snap(data.floor, data.label);
-    const opts = { stepFree: data.stepFree };
+    const opts = { stepFree: data.stepFree, diagonal: data.diagonal, bidirectional: data.bidirectional };
     if (data.type === 'entrances') {
       // one route per entrance; the app adds the outdoor walk and picks the best
       const result = b.entrances.map((e) => router.route(router.snap(e.floor, e.start), goal, opts));

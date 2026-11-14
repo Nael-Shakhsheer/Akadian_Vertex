@@ -1,6 +1,6 @@
 // App flow: pick a room or place -> GPS walks you there on the 3D campus -> 3D indoor route from the entrance.
 // GPS is only used outdoors; indoors the route starts from the entrance, so no indoor positioning is needed.
-import { loadBuilding, latLngToPlan, metersBetween, roomTitle, floorName } from './building.js';
+import { loadBuilding, latLngToPlan, planToLatLng, metersBetween, roomTitle, floorName } from './building.js';
 import { simplify } from './router.js';
 import { IndoorRouting } from './routing.js';
 import { OutdoorMap, nearestOnRing, CATEGORIES } from './outdoor.js';
@@ -9,8 +9,10 @@ import { walkingSteps } from './directions.js';
 import { ParkingSpot, ParkDetector, describe, ago, carHeading, CAR_SVG } from './parking.js';
 import { fmtDist, fmtHeight, walkMins } from './units.js';
 import { Timetable, nowIn, fmtClock, fmtWait, place } from './buses.js';
+import { ACCENTS, MODES, loadAppearance, saveAppearance, applyAppearance, resolved } from './themes.js';
 
 const $ = (s) => document.querySelector(s);
+applyAppearance(); // the inline boot script already painted the base; this settles the rest
 const ARRIVE_RADIUS = 20;     // m from the entrance counts as "arrived"
 const FAR_FROM_CAMPUS = 3000; // m; beyond this we assume a demo and let you tap the map
 const DATA = window.AKADIAN_DATA || '/api/public'; // published maps, served read-only by the engine
@@ -26,6 +28,9 @@ function link(u) {
   const rest = q.toString();
   return `?campus=${encodeURIComponent(CAMPUS)}${rest ? `&${rest}` : ''}`;
 }
+// Indoor search settings (Router.routeTo). Defaults suit these buildings; ?diag=0 drops to 4 neighbours and
+// ?bidi=1 searches out from both ends, so either can be compared on a real building without a rebuild.
+const ROUTE_OPTS = { diagonal: params.get('diag') !== '0', bidirectional: params.get('bidi') === '1' };
 const BROWSE = [['🍴', 'Food & coffee', 'food'], ['🚌', 'Bus & shuttle', 'bus'], ['🚻', 'Restrooms', 'restroom'],
   ['📚', 'Study rooms', 'study'], ['💻', 'Computer labs', 'computer lab'], ['🏛', 'Buildings', 'building']];
 
@@ -168,6 +173,7 @@ document.addEventListener('keydown', (e) => {
   if (e.key !== 'Escape') return;
   if (searching) return closeSearch();
   if (screen === 'search') return;
+  if (!$('#settings').classList.contains('hidden')) return closeSettings();
   if (screen === 'indoor' && !$('#roomCard').classList.contains('hidden')) return closeRoomCard();
   if (screen === 'outdoor' && nav.on) return endNav();
   const btn = $(`#${screen} .sheet > .back, #${screen} .sheet > :not(.hidden) > .sheet-close`);
@@ -256,29 +262,70 @@ $('#stepFree').onchange = async () => {
 const lineNames = (s) => s.lines.map((r) => campus.transit.lines[r]?.name || r).join(' · ');
 const timetable = campus.transit?.schedule ? new Timetable(campus.transit.schedule, campus.transit.stops) : null;
 const lineColour = (ref) => campus.transit.schedule?.routes[ref]?.colour || campus.transit.lines[ref]?.colour || '#2dd4bf';
+
+// Initials, so "JC" finds the Johnson Center and "MTC" the Math Tutoring Center.
+const initialsOf = (title) => {
+  const words = title.split(/[^A-Za-z0-9]+/).filter((w) => w && !/^(of|the|and|at|for|in|on)$/i.test(w));
+  return words.length > 1 ? words.map((w) => w[0].toLowerCase()).join('') : '';
+};
+const ringCentre = (ring) => {
+  const n = ring.length - 1;
+  return [ring.slice(0, n).reduce((s, p) => s + p[1], 0) / n, ring.slice(0, n).reduce((s, p) => s + p[0], 0) / n];
+};
+
+// One lift and one stairwell per floor is enough to offer; a building has dozens and they are all alike.
+function verticalRooms(ib) {
+  const seen = new Set();
+  return ib.b.rooms.filter((r) => {
+    if (r.kind !== 'elevator' && r.kind !== 'stair') return false;
+    const key = `${r.kind}:${r.floor}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
 const searchable = [
   ...indoors.flatMap((ib) => ib.b.rooms
     .filter((r) => (r.kind === 'room' || r.kind === 'restroom') && !r.restricted)
-    .map((r) => ({ type: 'room', r, ib, title: roomTitle(r), hay: `${r.id} ${roomTitle(r)} ${r.kind === 'restroom' ? 'bathroom restroom toilet wc' : ''} ${ib.name}`.toLowerCase() })))
+    .map((r) => ({ type: 'room', r, ib, title: roomTitle(r), at: planToLatLng(ib.b, ...r.label),
+      hay: `${r.id} ${roomTitle(r)} ${r.kind === 'restroom' ? 'bathroom restroom toilet wc' : ''} ${ib.name}`.toLowerCase() })))
     .sort((a, c) => (!!c.r.name - !!a.r.name) || (indoors.indexOf(a.ib) - indoors.indexOf(c.ib)) || a.r.id.localeCompare(c.r.id, undefined, { numeric: true })),
-  ...campus.buildings
-    .filter((x) => x.name)
+  // getting into a building, and getting between its floors
+  ...indoors.flatMap((ib) => ib.b.entrances
+    .filter((e) => e.lat != null && e.lon != null)
+    .map((e) => ({ type: 'entrance', e, ib, title: `${e.name} · ${ib.name}`, at: [e.lat, e.lon],
+      hay: `${e.name} ${ib.name} entrance door way in`.toLowerCase() }))),
+  ...indoors.flatMap((ib) => verticalRooms(ib)
+    .map((r) => ({ type: 'room', r, ib, title: roomTitle(r), at: planToLatLng(ib.b, ...r.label),
+      hay: `${roomTitle(r)} ${ib.name} ${r.kind === 'elevator' ? 'elevator lift accessible step free' : 'stairs stairwell steps'}`.toLowerCase() }))),
+  // a building drawn as several pieces comes through as one entry per piece: offer the biggest piece only,
+  // or the same name is listed two or three times
+  ...Object.values(campus.buildings.filter((x) => x.name).reduce((best, x) => {
+    const key = `${x.id}:${x.name}`;
+    if (!best[key] || x.ring.length > best[key].ring.length) best[key] = x;
+    return best;
+  }, {}))
     .sort((a, c) => a.name.localeCompare(c.name))
-    .map((x) => ({ type: 'building', bld: x, title: x.name, hay: `${x.name} building ${x.cat === 'dorm' ? 'residence hall dorm housing' : x.cat}`.toLowerCase() })),
+    .map((x) => ({ type: 'building', bld: x, title: x.name, at: ringCentre(x.ring),
+      hay: `${x.name} building ${x.cat === 'dorm' ? 'residence hall dorm housing' : x.cat}`.toLowerCase() })),
   ...(campus.transit?.stops || [])
-    .map((s) => ({ type: 'stop', stop: s, title: s.name,
+    .map((s) => ({ type: 'stop', stop: s, title: s.name, at: [s.lat, s.lon],
       hay: `${s.name} ${s.lines.join(' ')} ${lineNames(s)} ${s.networks.join(' ')} bus stop ${s.shuttle ? 'shuttle mason shuttles' : ''}`.toLowerCase() }))
     .sort((a, c) => (c.stop.shuttle - a.stop.shuttle) || (c.stop.lines.length - a.stop.lines.length)),
-  ...(campus.food || []).map((f) => ({ type: 'food', food: f, title: f.name,
+  ...(campus.food || []).map((f) => ({ type: 'food', food: f, title: f.name, at: [f.lat, f.lon],
     hay: `${f.name} ${f.kind} ${f.cuisine} ${f.building || ''} food eat dining lunch dinner ${/café|coffee/i.test(f.kind + f.cuisine) ? 'coffee cafe' : ''}`.toLowerCase() })),
 ];
+for (const s of searchable) s.initials = initialsOf(s.title);
 
-// Best matches first: exact room number, then names that start with what you typed, then anything that contains it.
+// Best matches first: exact room number, then initials, then names that start with what you typed, then anything
+// that contains it. Ties are broken by how far away the place is, so the nearest restroom comes first.
 function score(s, q, words) {
   const t = s.title.toLowerCase();
   const id = s.type === 'room' ? s.r.id.toLowerCase() : null;
   if (id === q || t === q) return 0;
   if (id?.startsWith(q)) return 1;
+  if (q.length >= 2 && s.initials === q) return 1;        // "JC" -> Johnson Center
   if (t.startsWith(q)) return 2;
   if (t.split(/[^a-z0-9']+/).some((w) => w.startsWith(q))) return 3;
   if (words.every((w) => s.hay.includes(w))) return 4;
@@ -307,54 +354,125 @@ function editDistance(a, b, max) {
   return prev[b.length];
 }
 
+/** Show which part of the name matched, the way a search box should. */
+function highlight(title, q, words) {
+  const safe = esc(title);
+  const needles = [q, ...words].filter((n) => n && n.length > 1);
+  const low = safe.toLowerCase();
+  let best = null;
+  for (const n of needles) {
+    const i = low.indexOf(esc(n).toLowerCase());
+    if (i >= 0 && (!best || esc(n).length > best.len)) best = { i, len: esc(n).length };
+  }
+  if (!best) return safe;
+  return `${safe.slice(0, best.i)}<mark>${safe.slice(best.i, best.i + best.len)}</mark>${safe.slice(best.i + best.len)}`;
+}
+
+const ICONS = { room: '📍', entrance: '🚪', building: '🏛', stop: '🚌', food: '🍴' };
+
 let topResult = null;
+let results = [];       // the rows on screen, for the arrow keys
+let activeRow = -1;
+
+function setActiveRow(i) {
+  const rows = [...$('#results').children].filter((el) => el.dataset.i !== undefined);
+  if (!rows.length) return;
+  activeRow = (i + rows.length) % rows.length;
+  rows.forEach((el, n) => el.classList.toggle('active', n === activeRow));
+  rows[activeRow].scrollIntoView({ block: 'nearest' });
+  $('#q').setAttribute('aria-activedescendant', rows[activeRow].id);
+}
+
 function renderResults(q) {
   q = q.trim().toLowerCase();
   const words = q.split(/\s+/).filter(Boolean);
-  let list = q
-    ? searchable.map((s) => ({ s, k: score(s, q, words) })).filter((x) => x.k >= 0).sort((a, c) => a.k - c.k).map((x) => x.s)
-    : []; // nothing typed: home shows your saved places instead
+  const here = state.user;
+  const away = (s) => (here && s.at ? metersBetween(here, s.at) : Infinity);
+  let list = [];
+  if (q) { // nothing typed: the list shows your saved places instead
+    const scored = searchable.map((s) => ({ s, k: score(s, q, words) })).filter((x) => x.k >= 0)
+      .sort((a, c) => a.k - c.k || away(a.s) - away(c.s));
+    // Every room carries its building's name, so searching the building ("torgersen") would otherwise bury the
+    // building itself under hundreds of its own room numbers. When the words are nothing but a building's name,
+    // keep only the nearest few of its rooms; a query like "torgersen 1050" still names a room and is untouched.
+    const shown = new Map();
+    list = scored.filter(({ s }) => {
+      if (s.type !== 'room' || !words.every((w) => s.ib.name.toLowerCase().includes(w))) return true;
+      const n = (shown.get(s.ib.name) || 0) + 1;
+      shown.set(s.ib.name, n);
+      return n <= 4;
+    }).map((x) => x.s);
+  }
   let fuzzy = false;
-  if (q && !list.length && q.length >= 4) { list = searchable.filter((s) => typoScore(s, words) >= 0); fuzzy = true; } // "did you mean"
+  if (q && !list.length && q.length >= 4) { // "did you mean"
+    list = searchable.filter((s) => typoScore(s, words) >= 0).sort((a, c) => away(a) - away(c));
+    fuzzy = true;
+  }
   $('#listTitle').textContent = q ? (list.length ? `${fuzzy ? 'Closest matches for' : 'Results for'} “${q}”` : '') : '';
   $('#recent').classList.toggle('hidden', !!q);
   $('#savedQuick').classList.toggle('hidden', !!q);
   $('#browse').classList.toggle('hidden', !!q);
   $('#results').innerHTML = '';
   topResult = null;
-  for (const s of list.slice(0, 40)) {
+  results = [];
+  activeRow = -1;
+  $('#q').removeAttribute('aria-activedescendant');
+
+  list.slice(0, 40).forEach((s, i) => {
     const li = document.createElement('li');
     li.tabIndex = 0;
-    li.setAttribute('role', 'button');
-    let go;
+    li.id = `res-${i}`;
+    li.dataset.i = i;
+    li.setAttribute('role', 'option');
+    const d = away(s);
+    const near = Number.isFinite(d) && d < 3000 ? `<span class="res-dist">${fmtDist(d)}</span>` : '';
+    let badge, meta, go;
     if (s.type === 'room') {
-      li.innerHTML = `<span class="badge">${s.r.kind === 'restroom' ? 'WC' : s.r.id}</span>
-        <div><div>${s.title}</div><div class="meta">${s.ib.name} · ${floorName(s.ib.b, s.r.floor)}</div></div>`;
+      badge = `<span class="badge">${s.r.kind === 'restroom' ? 'WC' : s.r.kind === 'elevator' ? '↕' : s.r.kind === 'stair' ? '⌁' : esc(s.r.id)}</span>`;
+      meta = `${esc(s.ib.name)} · ${esc(floorName(s.ib.b, s.r.floor))}`;
       go = () => chooseRoom(s.r);
+    } else if (s.type === 'entrance') {
+      badge = `<span class="badge ent">${ICONS.entrance}</span>`;
+      meta = `Way in to ${esc(s.ib.name)}`;
+      go = () => chooseEntrance(s.e, s.ib);
     } else if (s.type === 'food') {
-      li.innerHTML = `<span class="badge food">FOOD</span>
-        <div><div>${s.title}</div><div class="meta">${[s.food.kind, s.food.building].filter(Boolean).join(' · ')}</div></div>`;
+      badge = '<span class="badge food">FOOD</span>';
+      meta = esc([s.food.kind, s.food.building].filter(Boolean).join(' · '));
       go = () => chooseFood(s.food);
     } else if (s.type === 'stop') {
-      li.innerHTML = `<span class="badge stop">${s.stop.shuttle ? 'SHUTTLE' : 'BUS'}</span>
-        <div><div>${s.title}</div><div class="meta">${lineNames(s.stop) || s.stop.networks.join(' · ')}</div></div>`;
+      badge = `<span class="badge stop">${s.stop.shuttle ? 'SHUTTLE' : 'BUS'}</span>`;
+      meta = esc(lineNames(s.stop) || s.stop.networks.join(' · '));
       go = () => chooseStop(s.stop);
     } else {
-      li.innerHTML = `<span class="badge bld">${s.bld.indoor ? '3D' : 'BLDG'}</span>
-        <div><div>${s.title}</div><div class="meta">${s.bld.indoor ? 'Building · indoor map available' : 'Building'}</div></div>`;
+      badge = `<span class="badge bld">${s.bld.indoor ? '3D' : 'BLDG'}</span>`;
+      meta = s.bld.indoor ? 'Building · indoor map available' : 'Building';
       go = () => chooseBuilding(s.bld);
     }
+    li.innerHTML = `${badge}<div><div class="res-title">${highlight(s.title, q, words)}</div><div class="meta">${meta}</div></div>${near}`;
     li.onclick = go;
     li.onkeydown = (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); go(); } };
     topResult ||= go;
+    results.push(go);
     $('#results').append(li);
-  }
+  });
+
   if (q && !list.length) {
-    $('#results').innerHTML = `<li class="empty">Nothing matches “${q}”. Try a room number like <b>344</b>, a building, or a category below.</li>`;
+    $('#results').innerHTML = `<li class="empty">Nothing on this campus matches “${esc(q)}”.
+      <small>Try a room number like <b>344</b>, a building, or a category. If you meant another campus, use the badge at the top of the map to switch.</small></li>`;
   }
 }
+
 $('#q').addEventListener('input', (e) => { $('#searchClear').classList.toggle('hidden', !e.target.value); renderResults(e.target.value); });
-$('#q').addEventListener('keydown', (e) => { if (e.key === 'Enter' && topResult) { e.preventDefault(); topResult(); } });
+$('#q').addEventListener('keydown', (e) => {
+  if (e.key === 'ArrowDown' || e.key === 'ArrowUp') { // walk the list without leaving the box
+    if (!results.length) return;
+    e.preventDefault();
+    setActiveRow(activeRow + (e.key === 'ArrowDown' ? 1 : -1));
+  } else if (e.key === 'Enter') {
+    const go = activeRow >= 0 ? results[activeRow] : topResult;
+    if (go) { e.preventDefault(); go(); }
+  }
+});
 
 for (const [icon, label, q] of BROWSE) {
   const c = document.createElement('button');
@@ -375,18 +493,25 @@ $('#switchCampus').onclick = () => { location.href = location.pathname; }; // ba
 
 // ---------- recent places (this device only) ----------
 const RECENT_KEY = `akadian:recent:${CAMPUS}`;
+const HISTORY_MAX = 50; // the home screen shows the latest few; Settings shows the lot
 function recents() { try { return JSON.parse(localStorage.getItem(RECENT_KEY)) || []; } catch { return []; } }
 function remember(kind, key, title, sub) {
   setPlace({ kind, key, title, sub });
   const list = recents().filter((r) => !(r.kind === kind && r.key === key));
   list.unshift({ kind, key, title, sub });
-  try { localStorage.setItem(RECENT_KEY, JSON.stringify(list.slice(0, 5))); } catch {}
+  try { localStorage.setItem(RECENT_KEY, JSON.stringify(list.slice(0, HISTORY_MAX))); } catch {}
 }
 function openRecent(r) {
   if (r.kind === 'room') { const x = findRoom(...r.key.split('|').reverse()); if (x) return chooseRoom(x); }
   if (r.kind === 'building') { const x = campus.buildings.find((y) => y.id === r.key); if (x) return chooseBuilding(x); }
   if (r.kind === 'stop') { const x = campus.transit?.stops.find((y) => y.name === r.key); if (x) return chooseStop(x); }
   if (r.kind === 'food') { const x = campus.food?.find((y) => `${y.name}@${y.lat}` === r.key); if (x) return chooseFood(x); }
+  if (r.kind === 'entrance') { // key is "<building id>:<entrance name>"
+    const [bld, name] = [r.key.slice(0, r.key.indexOf(':')), r.key.slice(r.key.indexOf(':') + 1)];
+    const ib = indoors.find((x) => String(x.bld.id) === bld);
+    const e = ib?.b.entrances.find((x) => x.name === name);
+    if (e) return chooseEntrance(e, ib);
+  }
   toast('That place isn’t on the map anymore.');
 }
 // A room by id, in one building (its id, e.g. gmu-research) or the first building that has it.
@@ -404,7 +529,7 @@ const roomUrl = (room, ib) => `?to=${encodeURIComponent(room.id)}${ib === main ?
 // ---------- saved places: up to 5 favourites for one-tap directions (this device only) ----------
 const SAVED_KEY = `akadian:saved:${CAMPUS}`;
 const SAVED_MAX = 5;
-const KIND_ICON = { room: '📍', building: '🏛', stop: '🚌', food: '🍴' };
+const KIND_ICON = { room: '📍', building: '🏛', stop: '🚌', food: '🍴', entrance: '🚪' };
 function savedPlaces() { try { return JSON.parse(localStorage.getItem(SAVED_KEY)) || []; } catch { return []; } }
 function storeSaved(list) { try { localStorage.setItem(SAVED_KEY, JSON.stringify(list)); return true; } catch { return false; } }
 const sameP = (a, c) => a && c && a.kind === c.kind && a.key === c.key;
@@ -570,6 +695,13 @@ function renderBusTimes() {
 }
 setInterval(() => { if (screen === 'outdoor' && !$('#busTimes').classList.contains('hidden')) renderBusTimes(); }, 30000);
 
+// A named way in, picked from search ("east entrance"): walk to that door rather than the nearest one.
+function chooseEntrance(e, ib) {
+  remember('entrance', `${ib.bld.id}:${e.name}`, e.name, ib.name);
+  choosePoint({ title: e.name, sub: ib.name, lat: e.lat, lon: e.lon,
+    info: `Way in to ${ib.name}`, url: `?b=${ib.bld.id}`, arrive: `the ${e.name.split(' (')[0]}` });
+}
+
 function chooseFood(f) {
   remember('food', `${f.name}@${f.lat}`, f.name, [f.kind, f.building].filter(Boolean).join(' · '));
   const url = `?food=${campus.food.indexOf(f)}`;
@@ -624,7 +756,7 @@ async function computeIndoor() {
   const dest = state.dest;
   state.perEntrance = [];
   const ib = state.ib;
-  const all = await routingFor(ib).fromEntrances(dest.room, $('#stepFree').checked);
+  const all = await routingFor(ib).fromEntrances(dest.room, $('#stepFree').checked, ROUTE_OPTS);
   if (state.dest !== dest) return;
   state.perEntrance = ib.b.entrances.map((e, i) => {
     const legs = all[i];
@@ -1291,6 +1423,88 @@ async function ensureIndoor() {
   closeRoomCard();
 }
 
+// ---------- settings: how the app looks, and where you have been. Kept on this device. ----------
+function renderAppearance() {
+  const a = loadAppearance();
+  $('#modeRow').innerHTML = Object.entries(MODES).map(([k, m]) => {
+    const swatch = k === 'custom'
+      ? `<span class="swatch split" aria-hidden="true"></span>`
+      : `<span class="swatch" style="background:${m.base === 'light' ? '#ffffff' : '#16181d'};border-color:${m.base === 'light' ? '#15181e' : '#353943'}">
+           <i style="background:${ACCENTS[m.accent][m.base]}"></i></span>`;
+    return `<button data-mode="${k}" role="radio" aria-checked="${k === a.mode}" class="mode ${k === a.mode ? 'on' : ''}">
+      ${swatch}<span class="txt">${esc(m.label)}<small>${esc(m.hint)}</small></span></button>`;
+  }).join('');
+  $('#modeRow').querySelectorAll('[data-mode]').forEach((el) => (el.onclick = () => changeAppearance({ mode: el.dataset.mode })));
+
+  $('#customRow').classList.toggle('hidden', a.mode !== 'custom');
+  $('#baseRow').innerHTML = [['dark', 'Dark'], ['light', 'White']].map(([k, label]) =>
+    `<button data-base="${k}" role="radio" aria-checked="${k === a.base}" class="${k === a.base ? 'on' : ''}">${label}</button>`).join('');
+  $('#baseRow').querySelectorAll('[data-base]').forEach((el) => (el.onclick = () => changeAppearance({ mode: 'custom', base: el.dataset.base })));
+
+  $('#accentRow').innerHTML = Object.entries(ACCENTS).map(([k, c]) =>
+    `<button data-accent="${k}" role="radio" aria-checked="${k === a.accent}" class="${k === a.accent ? 'on' : ''}"
+      title="${esc(c.label)}" aria-label="${esc(c.label)}"><span style="background:${c[a.base]}"></span></button>`).join('');
+  $('#accentRow').querySelectorAll('[data-accent]').forEach((el) => (el.onclick = () => changeAppearance({ mode: 'custom', accent: el.dataset.accent })));
+}
+
+// The interface restyles itself instantly. The map's cartography and the 3D materials are built once from the
+// base, so switching dark <-> white reloads; changing only the colour repaints in place.
+async function changeAppearance(next) {
+  const before = resolved();
+  const after = resolved(saveAppearance(next));
+  applyAppearance();
+  renderAppearance();
+  if (after.base !== before.base) { location.reload(); return; }
+  outdoor.setAccent(after.hex);
+  for (const x of indoors) { x.view?.dispose(); x.view = null; }
+  indoor = null;
+  if (screen === 'indoor') await goIndoor();
+}
+
+function renderHistory() {
+  const list = recents();
+  $('#historyList').innerHTML = list.length
+    ? list.map((r, i) => `<li data-h="${i}" tabindex="0" role="button">
+        <span class="badge">${KIND_ICON[r.kind] || '📍'}</span>
+        <div><div class="res-title">${esc(r.title)}</div><div class="meta">${esc(r.sub || '')}</div></div></li>`).join('')
+    : '<li class="empty">Nowhere yet. Places you open show up here.</li>';
+  $('#historyList').querySelectorAll('[data-h]').forEach((el) => {
+    const go = () => { closeSettings(); openRecent(list[el.dataset.h]); };
+    el.onclick = go;
+    el.onkeydown = (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); go(); } };
+  });
+  const saved = savedPlaces();
+  $('#savedCount').textContent = `${saved.length}/${SAVED_MAX}`;
+  $('#setSaved').innerHTML = saved.length
+    ? `<ol class="saved-list">${saved.map((p, i) => `<li class="saved"><button class="go" data-s="${i}">
+        <span class="ico" aria-hidden="true">${KIND_ICON[p.kind] || '📍'}</span>
+        <span class="txt">${esc(p.title)}<small>${esc(p.sub || '')}</small></span><span class="arrow" aria-hidden="true">→</span></button>
+        <button class="rm" data-rs="${i}" aria-label="Remove ${esc(p.title)}">✕</button></li>`).join('')}</ol>`
+    : `<p class="muted">None yet. Open a place and tap ☆ Save place — you can keep ${SAVED_MAX}.</p>`;
+  $('#setSaved').querySelectorAll('[data-s]').forEach((el) => (el.onclick = () => { closeSettings(); openRecent(saved[el.dataset.s]); }));
+  $('#setSaved').querySelectorAll('[data-rs]').forEach((el) => (el.onclick = () => {
+    storeSaved(saved.filter((_, i) => i !== Number(el.dataset.rs)));
+    renderHistory();
+    setPlace(state.place);
+  }));
+}
+
+$('#clearHistory').onclick = () => {
+  try { localStorage.removeItem(RECENT_KEY); } catch {}
+  renderHistory();
+  toast('History cleared');
+};
+
+function openSettings() {
+  renderAppearance();
+  renderHistory();
+  $('#settings').classList.remove('hidden');
+  $('#settingsBack').focus({ preventScroll: true });
+}
+function closeSettings() { $('#settings').classList.add('hidden'); }
+$('#settingsBtn').onclick = openSettings;
+$('#settingsBack').onclick = closeSettings;
+
 // ---------- a room tapped in the 3D view: its card, with directions from where you are ----------
 let cardRoom = null;
 const roomPlace = (room, ib) => ({ kind: 'room', key: roomKey(room, ib), title: roomTitle(room), sub: roomSub(room, ib) });
@@ -1359,7 +1573,7 @@ async function goIndoor() {
 async function rerouteIndoor(room) {
   const ib = state.ib;
   const e = (state.choice?.e && ib.b.entrances.includes(state.choice.e) && state.choice.e) || ib.b.entrances[0];
-  const legs = await routingFor(ib).fromEntrance(e, room, $('#stepFree').checked);
+  const legs = await routingFor(ib).fromEntrance(e, room, $('#stepFree').checked, ROUTE_OPTS);
   if (!legs) { toast('No route to that room.'); return; }
   state.dest = { type: 'room', room, title: roomTitle(room) };
   state.choice = { e, legs };

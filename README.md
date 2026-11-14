@@ -64,6 +64,7 @@ python tests/test_engine.py
 python tests/test_schedule.py
 node tests/test_parking.mjs
 node tests/test_buses.mjs
+node tests/test_router.mjs
 ```
 
 **Demo on a phone (no Python needed):** the public app runs entirely in the browser, so a static copy works the same as the engine's public server: search, indoor and outdoor routes, 3D views, GPS, parking and saved places. The repo keeps one in `docs/`, served by GitHub Pages at **https://nael-shakhsheer.github.io/Akadian_Maps/**. Open it on the phone, then use the browser's **Add to Home Screen** to launch it like an app. GPS works because Pages uses https. To turn Pages on once: on GitHub, **Settings → Pages → Build and deployment → Deploy from a branch → `main`, `/docs` → Save**. After you change or publish maps, refresh the copy and push:
@@ -153,9 +154,47 @@ The engine is built so that a school's non-public schematics can be processed wi
   - Campus buildings are 3D. Everything off campus is flat.
   - Color filters for academic, residence halls, parking (highlighted), arena & athletics, and sports fields.
   - Road names appear from zoom 16 (main roads) and 17 (campus streets). Building and lot names fade in as you zoom.
-- **Indoor:** Three.js, using clean vector rooms at true scale with glowing outlines and a flowing route. Search covers rooms and restrooms in every mapped building ("restroom research", "1214"). Each building gets its own 3D view on first visit, and only the one on screen renders. Hover a room to see its name. Tap a room for its card: it's outlined and its floor shown, with **Directions from here** (the full trip: walk to the best entrance, then inside), **Route from the entrance** (when you're already inside), Save and Share. A step-free toggle keeps routes to elevators.
+- **Indoor:** Three.js, using clean vector rooms at true scale with glowing outlines and a flowing route. Each building gets its own 3D view on first visit, and only the one on screen renders. Hover a room to see its name. Tap a room for its card: it's outlined and its floor shown, with **Directions from here** (the full trip: walk to the best entrance, then inside), **Route from the entrance** (when you're already inside), Save and Share. A step-free toggle keeps routes to elevators.
 - **Deep links** (good for QR codes): `?campus=vt&to=2060` for a room, `&in=gmu-research` to pick the building when several share a number, `?b=<OSM id>` for a building. Links without a campus open GMU, so older GMU links keep working.
-- **Theme:** Memex (charcoal + `#f0a04a`). Tokens are in `app/style.css` and `THEME` in `app/js/indoor3d.js`.
+- **Search:** one box over the map covers rooms, entrances, lifts and stairwells, buildings, food and bus stops.
+  Exact room numbers rank first, then initials (**JC** finds the Johnson Center, **MTC** the Math Tutoring Center),
+  then names that start with what you typed, then anything containing it, with a typo pass behind that
+  ("chipolte", "dewbery"). Equally good matches are ordered by how far away they are, and the distance is shown,
+  so "restroom" lists the nearest one first. The matching part of each name is highlighted, ↑/↓ walk the list and
+  Enter opens the highlighted row. Searching a building's own name lists the building, its entrances and a few of
+  its rooms rather than all several hundred; adding a number ("torgersen 1050") still goes straight to the room.
+- **Indoor routing settings** (`app/js/router.js`, `Router.routeTo`): best-first search (A*) over the stacked floor
+  grids, with a straight-line (Euclidean) heuristic plus the floors still to change. `diagonal` picks 8 neighbours
+  (default, never cutting a blocked corner) or 4; `bidirectional` searches out from the start and the goal at once
+  and meets in the middle. Both return a path of exactly the same cost — `tests/test_router.mjs` checks that over
+  385 real routes — but bidirectional is **off by default because it loses here**: it expands about 31% *more*
+  cells, since the straight-line heuristic already aims one frontier almost at the goal and a second mostly
+  duplicates it. It is kept for buildings where the heuristic is weaker. Either can be tried on a real building
+  with `?diag=0` and `?bidi=1`.
+- **Theme:** Memex (charcoal + `#f0a04a`). Tokens are in `app/style.css`.
+- **Appearance:** the whole app follows a **base** (dark or white) and an **accent**, chosen in Settings (the gear
+  beside the campus badge) and kept on the device, so it is still there next time you open the app.
+  **Standard** is dark with warm orange; **Light** is a white base with near-black outlines and a more vibrant
+  orange, which a pale background needs to hold contrast; **Custom** takes any base with orange, red, green, blue,
+  gold or purple. Each accent has a dark and a light value so it stays readable on either base. It reaches the
+  interface, the wordmark, the map's route and campus outline, and the 3D views. `app/js/themes.js` owns it and
+  sets the CSS variables on `<html>`; a short inline script in `index.html` repeats that before the first paint so
+  the wrong base never flashes. Changing only the colour repaints in place; switching base reloads, because the
+  map's cartography and the 3D materials are built once from it. The category colours in Layers (academic,
+  parking, food…) are a legend, not branding, so they stay put.
+- **Settings** also lists your saved places and your **history** — the last 50 places you opened, with a Clear
+  button. The home sheet still shows the most recent few.
+- **Saved places:** up to five favourites, kept on the device, from ☆ Save place on any destination.
+- **Study rooms:** all 23 bookable Johnson Center study rooms are on the map and searchable — 118–120 on Floor 1,
+  218 and 219A–D and 226B–D on Floor 2, 314, 315A–D and 320A–H on Floor 3. They were always drawn on GMU's floor
+  plans; only their names were missing, so search never found them. The names come from Student Centers' own
+  reservation system ([LibCal](https://studentcenters-gmu.libcal.com/spaces?lid=13330&gid=27525), which matches
+  the "23 reservable study room spaces" on [studentcenters.gmu.edu/study-rooms](https://studentcenters.gmu.edu/study-rooms/))
+  and live in `NAMES` in `tools/seed_gmu.py`. The shells 219, 226, 315 and 320 are deliberately left unnamed, so
+  that four rooms nobody can book do not sit above the 23 that they can.
+  Research Hall, Merten Hall, The HUB and Torgersen Hall have **no named rooms at all** — GMU and Virginia Tech
+  publish floor plans for them but no room directory — so their study rooms cannot be labelled until a list with
+  room numbers turns up.
 - **Logo:** a Cinzel "A" whose crossbar is the orange "you are here" diamond, next to the AKADIAN / VERTEX wordmark in Cinzel SemiBold. The mark is in `app/icons/mark.svg` (and `icon.svg` for the browser tab), with PNG app icons beside it. Cinzel is under the SIL Open Font License (`app/vendor/fonts/OFL-Cinzel.txt`).
 
 ## Layout
@@ -174,6 +213,7 @@ tools/export_static.py  static copy of the public app + published maps (docs/, f
 docs/                   that static copy (generated; re-run the export instead of editing)
 tests/test_engine.py    end-to-end engine test (temp folder)
 tests/test_parking.mjs  parking auto-prompt + on-device storage (node)
+tests/test_router.mjs   indoor routing: the two searches agree, step-free, 4- vs 8-way (node)
 tests/test_schedule.py  GTFS timetable step (no engine dependencies)
 tests/test_buses.mjs    next departures, past midnight, day types (node)
 data/gmu/               public GMU sources: floor plan PDFs, directories, OSM extracts

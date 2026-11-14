@@ -15,6 +15,28 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <link rel="stylesheet" href="vendor/maplibre-gl/maplibre-gl.css">
   <link rel="stylesheet" href="style.css">
+  <script>
+    // Saved appearance, applied before anything paints (js/themes.js owns the real logic and repeats this).
+    try {
+      var A = JSON.parse(localStorage.getItem('akadian:appearance')) || {};
+      var M = { standard: ['dark', 'orange'], light: ['light', 'orange'] }[A.mode];
+      var base = M ? M[0] : (A.base === 'light' ? 'light' : 'dark');
+      var accent = M ? M[1] : (A.accent || 'orange');
+      var HEX = { orange: ['#f0a04a', '#d2600a'], red: ['#ff6b6b', '#c62828'], green: ['#4ade80', '#15803d'],
+                  blue: ['#60a5fa', '#1d4ed8'], gold: ['#fbbf24', '#a16207'], purple: ['#c084fc', '#7c3aed'] };
+      var r = document.documentElement, light = base === 'light';
+      r.dataset.base = base;
+      r.dataset.accent = accent;
+      r.style.setProperty('--accent', (HEX[accent] || HEX.orange)[light ? 1 : 0]);
+      if (light) {
+        var S = { '--bg': '#ffffff', '--surface': '#f6f7f9', '--card': '#ffffff', '--input': '#f1f3f6',
+                  '--raised': '#e9ecf1', '--line': '#15181e', '--text': '#15171c', '--muted': '#596070',
+                  '--glass-1': '#ffffffcc', '--glass-2': '#ffffffe8', '--glass-3': '#fffffff5',
+                  '--shadow': '#0000002e', '--on-accent': '#ffffff', 'color-scheme': 'light' };
+        for (var k in S) r.style.setProperty(k, S[k]);
+      }
+    } catch (e) {}
+  </script>
   <script type="importmap">
     {
       "imports": {
@@ -56,7 +78,7 @@
   <section id="search" class="search-overlay hidden" aria-label="Search the campus">
     <div class="search-head">
       <button id="searchBack" class="icon-btn" aria-label="Back to the map"><span aria-hidden="true">←</span></button>
-      <input id="q" type="search" placeholder="Search rooms, buildings, food, bus stops" autocomplete="off" aria-label="Search the campus" enterkeyhint="go">
+      <input id="q" type="search" placeholder="Search rooms, buildings, food, bus stops" autocomplete="off" aria-label="Search the campus" enterkeyhint="go" role="combobox" aria-expanded="true" aria-controls="results" aria-autocomplete="list">
       <button id="searchClear" class="icon-btn hidden" aria-label="Clear the search"><span aria-hidden="true">✕</span></button>
     </div>
     <div class="search-body">
@@ -64,7 +86,30 @@
       <div id="savedQuick"></div>
       <div id="recent"></div>
       <h2 class="list-title" id="listTitle"></h2>
-      <ul id="results" class="results"></ul>
+      <ul id="results" class="results" role="listbox" aria-label="Search results"></ul>
+    </div>
+  </section>
+
+  <!-- Settings: how the app looks, and where you have been -->
+  <section id="settings" class="search-overlay hidden" aria-label="Settings">
+    <div class="search-head">
+      <button id="settingsBack" class="icon-btn" aria-label="Back to the map"><span aria-hidden="true">←</span></button>
+      <h2 class="head-title">Settings</h2>
+    </div>
+    <div class="search-body">
+      <h3 class="set-head">Appearance</h3>
+      <div id="modeRow" class="mode-row" role="radiogroup" aria-label="Appearance"></div>
+      <div id="customRow" class="hidden">
+        <h3 class="set-head">Base</h3>
+        <div id="baseRow" class="seg" role="radiogroup" aria-label="Base"></div>
+        <h3 class="set-head">Colour</h3>
+        <div id="accentRow" class="accent-row" role="radiogroup" aria-label="Colour"></div>
+      </div>
+      <h3 class="set-head">Saved places <span id="savedCount" class="count"></span></h3>
+      <div id="setSaved"></div>
+      <h3 class="set-head">History <button id="clearHistory" class="link set-clear">Clear</button></h3>
+      <ul id="historyList" class="results"></ul>
+      <p class="muted small-print">Everything here is kept on this device only.</p>
     </div>
   </section>
 
@@ -76,6 +121,9 @@
           <button id="searchOpen" class="searchbar-field" aria-label="Search the campus"><span id="searchText" class="searchbar-text">Search rooms, buildings, food</span></button>
           <button id="searchClose" class="icon-btn hidden" aria-label="Close this place"><span aria-hidden="true">✕</span></button>
           <button id="campusBtn" class="campus-chip" aria-label="Change campus" title="Change campus"></button>
+          <button id="settingsBtn" class="icon-btn round" aria-label="Settings" title="Settings">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3.2"/><path d="M19.4 13.5a7.7 7.7 0 0 0 0-3l1.8-1.3-1.8-3.1-2.1.8a7.7 7.7 0 0 0-2.6-1.5L14.4 3h-3.6l-.3 2.3a7.7 7.7 0 0 0-2.6 1.5l-2.1-.8-1.8 3.1 1.8 1.3a7.7 7.7 0 0 0 0 3l-1.8 1.3 1.8 3.1 2.1-.8a7.7 7.7 0 0 0 2.6 1.5l.3 2.3h3.6l.3-2.3a7.7 7.7 0 0 0 2.6-1.5l2.1.8 1.8-3.1z"/></svg>
+          </button>
         </div>
         <div id="mapChips" class="chips scroll-row map-chips" aria-label="Browse by category"></div>
       </div>

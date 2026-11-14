@@ -2,7 +2,7 @@
 // App files and map data: network first (always fresh), cache as fallback.
 // Libraries, map tiles, fonts and icons: cache first (they never change for a given URL).
 // Paths are relative to where the app is served (/ on the engine, /<repo>/ on GitHub Pages).
-const CACHE = 'akadian-v6'; // v6: map-first layout
+const CACHE = 'akadian-v7'; // v7: interior palettes, search and routing settings
 const SHELL = ['./', 'style.css', 'manifest.webmanifest', 'icons/icon-192.png'];
 const LONG_LIVED = ['/vendor/', '/tiles/', '/fonts/', '/icons/'];
 

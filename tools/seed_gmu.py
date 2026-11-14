@@ -32,18 +32,30 @@ NAMES = {
     "G18": "Catering Offices", "G19": "Gold Room", "G26": "Dewberry Hall", "G30BD": "Cinema", "G33": "WGMU Radio Station",
     "G34": "Dance Studio", "G35": "Dance Studio", "G38": "Bistro", "G45": "Event Services Offices",
     "112": "Campus Bookstore (Barnes & Noble)", "133": "Patriot Computer Store",
-    **{r: "Overflow Seating / Meeting Room" for r in ("117", "118", "119", "120", "121")},
+    **{r: "Overflow Seating / Meeting Room" for r in ("117", "121")},
     "134L": "Student Centers Flex Space", "136B": "University Information",
-    "213": "Admissions", "218": "Group Study Room", "219": "Group Study Room", "226": "Group Study Room",
+    "213": "Admissions",
     "227E": "The Lab for Writing and Communication", "228": "Office of Undergraduate Education / OSCAR",
     "229": "STAR Lab (Student Technology Assistance & Resource Lab)",
     **{r: "Meeting Room" for r in ("234", "239A", "243", "244", "325", "326", "327", "333", "334", "335", "336", "337")},
     **{r: "Office of Global Education" for r in ("235", "241", "245")}, "239H": "Campus Ministries",
     "240A": "African and African American Studies Resource Center / Paul Robeson Reading Room",
     "240K": "Women and Gender Studies", "311": "CLUB – Collaborative Learning Hub", "312": "Meditation Space",
-    "314": "Group Study Room", "315": "Group Study Room", "320": "Group Study Room", "321": "George's",
+    "321": "George's",
     "324": "Student Centers Admin Office", **{r: "Computer Lab" for r in ("340", "341", "342", "343")},
     "344": "Math Tutoring Center",
+    # The 23 bookable study rooms, from Student Centers' own reservation system (LibCal):
+    # studentcenters-gmu.libcal.com/spaces?lid=13330&gid=27525 — checked against studentcenters.gmu.edu/study-rooms/
+    # ("23 reservable study room spaces ... throughout the 1st, 2nd, and 3rd floors"). Every one of these is already
+    # a room on GMU's floor plans; only the names were missing, which is why they never turned up in search.
+    **{r: "Group Study Room" for r in (
+        "118", "119", "120",                                              # floor 1, 12 people each
+        "218", "219A", "219B", "219C", "219D", "226B", "226C", "226D",    # floor 2
+        "314", "315A", "315B", "315C", "315D",                            # floor 3
+        "320A", "320B", "320C", "320D", "320E", "320F", "320H",           # floor 3
+    )},
+    # 219, 226, 315 and 320 are the shells the lettered rooms sit inside. They are left unnamed on purpose:
+    # naming them too would put four rooms nobody can book above the 23 that they can.
 }
 ENTRANCES = {  # OSM node -> (floor, vestibule label, nudge onto the doors, name)
     2742432941: ("first", "VEST2", (-45, -35), "North entrance (Aquia Creek side)"),

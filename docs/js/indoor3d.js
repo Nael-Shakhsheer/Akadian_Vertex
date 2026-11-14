@@ -9,19 +9,13 @@ import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js'
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { floorShort } from './building.js';
+import { THEME, applyTheme, hexOf as hex } from './themes.js';
 
-// Memex palette: charcoal surfaces, warm orange light.
-export const THEME = {
-  bg: 0x16181d,
-  grid: [0x2a2d34, 0x1e2026],
-  slab: 0x1f2228,
-  walk: 0x2a2e36,
-  room: 0x262a32,
-  shaft: 0x15171b,
-  accent: 0xf0a04a,
-  hover: 0xffd29a,
-};
-const GLOW = (k) => new THREE.Color(THEME.accent).multiplyScalar(k); // >1 = blooms
+export { THEME };
+applyTheme(); // pick up the stored choice before anything builds materials
+
+const GLOW = (k) => new THREE.Color(THEME.accent).multiplyScalar(k);  // route + destination: >1 blooms
+const LINE = (k) => new THREE.Color(THEME.line).multiplyScalar(k);    // structure outlines
 
 // Render resolution: full sharpness on desktops, capped on phones where 3x screens make the glow pass costly.
 export function renderScale() {
@@ -49,6 +43,9 @@ export class IndoorView {
     r.setPixelRatio(renderScale());
     r.toneMapping = THREE.ACESFilmicToneMapping;
     container.appendChild(r.domElement);
+    container.dataset.light = THEME.light ? '1' : '0';
+    container.style.setProperty('--i-accent', hex(THEME.accent));
+    container.style.setProperty('--i-hover', hex(THEME.hover));
     this.labels = new CSS2DRenderer();
     Object.assign(this.labels.domElement.style, { position: 'absolute', inset: '0', pointerEvents: 'none' });
     container.style.position = 'relative';
@@ -62,8 +59,8 @@ export class IndoorView {
     this.controls = new OrbitControls(this.camera, r.domElement);
     Object.assign(this.controls, { enableDamping: true, maxPolarAngle: Math.PI * 0.48, minDistance: 12, maxDistance: 420 });
 
-    this.scene.add(new THREE.HemisphereLight(0xffffff, 0x30343c, 1.4));
-    const sun = new THREE.DirectionalLight(0xfff1e0, 1.2);
+    this.scene.add(new THREE.HemisphereLight(0xffffff, THEME.light ? 0xb9bec8 : 0x30343c, THEME.hemi));
+    const sun = new THREE.DirectionalLight(THEME.light ? 0xffffff : 0xfff1e0, THEME.sun);
     sun.position.set(-80, 160, 60);
     this.scene.add(sun);
     const grid = new THREE.GridHelper(700, 70, ...THEME.grid);
@@ -80,7 +77,7 @@ export class IndoorView {
 
     this.composer = new EffectComposer(r);
     this.composer.addPass(new RenderPass(this.scene, this.camera));
-    this.bloom = new UnrealBloomPass(new THREE.Vector2(256, 256), 0.75, 0.5, 0.62);
+    this.bloom = new UnrealBloomPass(new THREE.Vector2(256, 256), ...THEME.bloom);
     this.composer.addPass(this.bloom);
     this.composer.addPass(new OutputPass());
 
@@ -97,7 +94,8 @@ export class IndoorView {
 
     this.clock = new THREE.Clock();
     this.time = 0;
-    new ResizeObserver(() => this.resize()).observe(container);
+    this.ro = new ResizeObserver(() => this.resize());
+    this.ro.observe(container);
     this.resize();
     this.setFloorMode('all', true);
     r.setAnimationLoop(() => this.tick());
@@ -135,6 +133,10 @@ export class IndoorView {
     return g;
   }
   lineMat(k, opacity = 1) {
+    return new THREE.LineBasicMaterial({ color: LINE(k), transparent: true, opacity, toneMapped: false });
+  }
+  // the route and its destination stay on the accent, whatever the structure is
+  accentMat(k, opacity = 1) {
     return new THREE.LineBasicMaterial({ color: GLOW(k), transparent: true, opacity, toneMapped: false });
   }
 
@@ -149,7 +151,7 @@ export class IndoorView {
     const slab = new THREE.ExtrudeGeometry(this.shapes(f.slab), { depth: SLAB_T, bevelEnabled: false });
     add(new THREE.Mesh(flatUp(slab).translate(0, -SLAB_T, 0),
       new THREE.MeshStandardMaterial({ color: THEME.slab, roughness: 0.6, metalness: 0.2, transparent: true })), 0.92);
-    add(new THREE.LineSegments(this.outline(f.slab.flatMap((p) => [p.o, ...p.h]), 0.02), this.lineMat(2.6)), 1);
+    add(new THREE.LineSegments(this.outline(f.slab.flatMap((p) => [p.o, ...p.h]), 0.02), this.lineMat(THEME.light ? 1 : THEME.edgeK)), 1);
 
     // corridors and lobbies: a slightly lighter floor surface
     const walk = new THREE.ShapeGeometry(this.shapes(f.walk));
@@ -171,7 +173,7 @@ export class IndoorView {
     if (shaftGeos.length) {
       add(new THREE.Mesh(mergeGeometries(shaftGeos), new THREE.MeshStandardMaterial({ color: THEME.shaft, transparent: true })), 1);
     }
-    add(new THREE.LineSegments(this.outline(roomLoops, ROOM_H + 0.01), this.lineMat(0.75)), 0.7);
+    add(new THREE.LineSegments(this.outline(roomLoops, ROOM_H + 0.01), this.lineMat(THEME.light ? 1 : THEME.roomK)), THEME.light ? 0.85 : THEME.roomEdge);
 
     const tag = document.createElement('div');
     tag.className = 'tag floor-tag';
@@ -225,17 +227,19 @@ export class IndoorView {
     for (let i = 1; i < pts.length; i++) if (pts[i].distanceTo(pts[i - 1]) > 0.01) path.add(new THREE.LineCurve3(pts[i - 1], pts[i]));
     const len = path.getLength();
     this.routeMat = new THREE.ShaderMaterial({
-      uniforms: { uTime: { value: 0 }, uLen: { value: len }, uColor: { value: new THREE.Color(THEME.accent) } },
+      // on a light palette the route must stay a solid, saturated line: brightening it past white washes it out
+      uniforms: { uTime: { value: 0 }, uLen: { value: len }, uColor: { value: new THREE.Color(THEME.accent) },
+        uBase: { value: THEME.light ? 0.85 : 1.6 }, uPulse: { value: THEME.light ? 0.35 : 3.5 } },
       vertexShader: 'varying vec2 vUv; void main(){ vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position,1.0); }',
-      fragmentShader: `uniform float uTime, uLen; uniform vec3 uColor; varying vec2 vUv;
+      fragmentShader: `uniform float uTime, uLen, uBase, uPulse; uniform vec3 uColor; varying vec2 vUv;
         void main(){
           float d = vUv.x * uLen;
           float wave = pow(0.5 + 0.5 * sin(d * 0.35 - uTime * 5.0), 8.0);
-          gl_FragColor = vec4(uColor * (1.6 + 3.5 * wave), 1.0);
+          gl_FragColor = vec4(uColor * (uBase + uPulse * wave), 1.0);
         }`,
       toneMapped: false,
     });
-    this.routeGroup.add(new THREE.Mesh(new THREE.TubeGeometry(path, Math.max(64, Math.round(len * 3)), 0.32, 10, false), this.routeMat));
+    this.routeGroup.add(new THREE.Mesh(new THREE.TubeGeometry(path, Math.max(64, Math.round(len * 3)), THEME.light ? 0.46 : 0.32, 10, false), this.routeMat));
 
     // destination: the room itself lights up
     const space = dest.space !== undefined ? this.b.floors[this.b.floorIndex[dest.floor]].spaces[dest.space].o : dest.poly.flat();
@@ -247,7 +251,7 @@ export class IndoorView {
     destMesh.position.y = dy + 0.02;
     destMesh.userData.floor = dest.floor;
     this.routeGroup.add(destMesh);
-    const destLine = new THREE.LineSegments(this.outline([space], dy + ROOM_H + 0.3), this.lineMat(4));
+    const destLine = new THREE.LineSegments(this.outline([space], dy + ROOM_H + 0.3), this.accentMat(THEME.light ? 1 : 4));
     destLine.userData.floor = dest.floor;
     this.routeGroup.add(destLine);
     const [lx, lz] = this.w(...dest.label);
@@ -276,7 +280,8 @@ export class IndoorView {
     }
 
     // a bright comet that walks the route
-    this.walker = new THREE.Mesh(new THREE.SphereGeometry(0.55, 20, 14), new THREE.MeshBasicMaterial({ color: new THREE.Color(1, 1, 1).multiplyScalar(3), toneMapped: false }));
+    this.walker = new THREE.Mesh(new THREE.SphereGeometry(0.55, 20, 14), new THREE.MeshBasicMaterial({
+      color: THEME.light ? new THREE.Color(THEME.accent) : new THREE.Color(1, 1, 1).multiplyScalar(3), toneMapped: false }));
     this.routeGroup.add(this.walker);
     this.segLens = [];
     this.walkLen = 0;
@@ -331,7 +336,7 @@ export class IndoorView {
     const fl = this.floors[this.b.floorIndex[hit.floor]];
     const o = fl.f.spaces[hit.sid].o;
     const y = fl.group.position.y + ROOM_H + 0.05;
-    this.hoverGroup.add(new THREE.LineSegments(this.outline([o], y), new THREE.LineBasicMaterial({ color: new THREE.Color(THEME.hover).multiplyScalar(3), toneMapped: false })));
+    this.hoverGroup.add(new THREE.LineSegments(this.outline([o], y), new THREE.LineBasicMaterial({ color: new THREE.Color(THEME.hover).multiplyScalar(THEME.light ? 1 : 3), toneMapped: false })));
     const el = document.createElement('div');
     el.className = 'tag hover';
     const r = hit.room;
@@ -351,7 +356,7 @@ export class IndoorView {
     const fl = this.floors[this.b.floorIndex[room.floor]];
     const o = fl.f.spaces[room.space].o;
     const y = fl.group.position.y + ROOM_H + 0.06;
-    const glow = new THREE.Color(THEME.hover).multiplyScalar(4);
+    const glow = new THREE.Color(THEME.hover).multiplyScalar(THEME.light ? 1 : 4);
     this.selectGroup.add(new THREE.LineSegments(this.outline([o], y), new THREE.LineBasicMaterial({ color: glow, toneMapped: false })));
     this.selectGroup.add(new THREE.LineSegments(this.outline([o], fl.group.position.y + 0.08), new THREE.LineBasicMaterial({ color: glow, toneMapped: false })));
     const pts = [];
@@ -381,6 +386,22 @@ export class IndoorView {
     this.renderer.domElement.style.display = on ? '' : 'none';
     this.labels.domElement.style.display = on ? '' : 'none';
     if (!on) this.setHover(null);
+  }
+
+  // Tear this view down so another can be built in its place (used when the interior palette changes).
+  dispose() {
+    this.active = false;
+    this.renderer.setAnimationLoop(null);
+    this.ro?.disconnect();
+    this.scene.traverse((o) => {
+      o.geometry?.dispose?.();
+      for (const m of [o.material].flat()) m?.dispose?.();
+    });
+    for (const el of [...this.labels.domElement.children]) el.remove();
+    this.composer?.dispose?.();
+    this.renderer.dispose();
+    this.renderer.domElement.remove();
+    this.labels.domElement.remove();
   }
 
   resize() {
