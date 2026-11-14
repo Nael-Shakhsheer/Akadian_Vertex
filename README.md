@@ -1,6 +1,8 @@
 # Akadian Vertex
 
-3D campus maps with room-level directions. Two campuses so far, picked on the app's first screen:
+[Explore the Vertex website](https://nael-shakhsheer.github.io/Akadian_Vertex/website/) · [Launch the navigation app](https://nael-shakhsheer.github.io/Akadian_Vertex/)
+
+3D campus maps with room-level directions for George Mason University and Virginia Tech. Choose your campus when you open the app:
 
 - **George Mason University** (Fairfax): the 3D campus, plus four buildings indoors: the Johnson Center (4 floors, ~320 rooms), Research Hall (floors 1–4, ~235 rooms), Merten Hall (floor 1) and The HUB (lower level).
 - **Virginia Tech** (Blacksburg): the 3D campus with Blacksburg Transit stops and food, plus Torgersen Hall indoors (floors 1–3, ~220 rooms).
@@ -67,13 +69,13 @@ node tests/test_buses.mjs
 node tests/test_router.mjs
 ```
 
-**Demo on a phone (no Python needed):** the public app runs entirely in the browser, so a static copy works the same as the engine's public server: search, indoor and outdoor routes, 3D views, GPS, parking and saved places. The repo keeps one in `docs/`, served by GitHub Pages at **https://nael-shakhsheer.github.io/Akadian_Vertex/**. Open it on the phone, then use the browser's **Add to Home Screen** to launch it like an app. GPS works because Pages uses https. To turn Pages on once: on GitHub, **Settings → Pages → Build and deployment → Deploy from a branch → `main`, `/docs` → Save**. After you change or publish maps, refresh the copy and push:
+**Open the app on a phone (no Python needed):** the public app runs entirely in the browser, so a static copy works the same as the engine's public server: search, indoor and outdoor routes, 3D views, GPS, parking and saved places. The repo keeps one in `docs/`, served by GitHub Pages at **https://nael-shakhsheer.github.io/Akadian_Vertex/**. Open it on the phone, then use the browser's **Add to Home Screen** to launch it like an app. GPS works because Pages uses https. To turn Pages on once: on GitHub, **Settings → Pages → Build and deployment → Deploy from a branch → `main`, `/docs` → Save**. After you change or publish maps, refresh the copy and push:
 
 ```bash
 python tools/export_static.py
 ```
 
-`docs/` holds only what the public server already shows anyone: the app and the *published* maps. No schematics, renders, OCR or vault. The private studio isn't included. Don't put a building in `docs/` that you wouldn't publish.
+`docs/` contains the public app, the *published* maps, and the [Vertex website](https://nael-shakhsheer.github.io/Akadian_Vertex/website/). The website lives in `docs/website/` and stays in place when you export the app. No schematics, renders, OCR or vault. The private studio isn't included. Don't put a building in `docs/` that you wouldn't publish.
 
 `engine_data/` is in `.gitignore` on purpose: it holds your vault and encrypted schematics. Never commit it.
 

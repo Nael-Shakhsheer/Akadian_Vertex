@@ -26,11 +26,15 @@ def main():
         sys.exit("Nothing published yet. Run:  python tools/seed_gmu.py --publish-only")
     if out.resolve() in (ROOT.resolve(), APP.resolve(), pub.resolve()) or ROOT.resolve() not in out.resolve().parents:
         sys.exit(f"Refusing to export into {out}: pick a new folder inside the project, like docs/ or dist/.")
+    preserve_website = out.resolve() == (ROOT / "docs").resolve()
+    website = out / "website"
     if out.exists():
         if any(out.iterdir()) and not (out / ".akadian-export").exists():
             sys.exit(f"{out} exists and isn't a previous export; not overwriting it.")
         # delete the old files but keep folders: synced folders (OneDrive) lock them, and empty ones are harmless
         for p in sorted(out.rglob("*"), reverse=True):
+            if preserve_website and website in p.parents:
+                continue
             if p.is_file() and p.name != ".akadian-export":  # the marker goes last, so a failed run can retry
                 p.unlink()
 
