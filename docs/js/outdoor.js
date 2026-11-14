@@ -6,6 +6,7 @@ const cssVar = (name, fallback) =>
   (getComputedStyle(document.documentElement).getPropertyValue(name) || '').trim() || fallback;
 const BASE = document.documentElement.dataset.base === 'light' ? 'light' : 'dark';
 const ACCENT = cssVar('--accent', '#f0a04a');
+const ACCENT_HI = cssVar('--accent-hi', '#ffb866'); // the brighter end, for the route core and the focus halo
 const NEUTRAL = BASE === 'light' ? '#c3c8d2' : '#2b2f37';
 
 // Basemap cartography per base. The campus itself is drawn from our own data on top of this; these are the
@@ -176,7 +177,7 @@ export class OutdoorMap {
           { id: 'route-glow', type: 'line', source: 'route', layout: { 'line-cap': 'round', 'line-join': 'round' },
             paint: { 'line-color': ACCENT, 'line-width': ['interpolate', ['linear'], ['zoom'], 15, 10, 19, 22], 'line-blur': 8, 'line-opacity': 0.5 } },
           { id: 'route', type: 'line', source: 'route', layout: { 'line-cap': 'round', 'line-join': 'round' },
-            paint: { 'line-color': '#ffd29a', 'line-width': ['interpolate', ['linear'], ['zoom'], 15, 3, 19, 6] } },
+            paint: { 'line-color': ACCENT_HI, 'line-width': ['interpolate', ['linear'], ['zoom'], 15, 3, 19, 6] } },
           { id: 'pts-halo', type: 'circle', source: 'points', paint: {
             'circle-radius': ['case', ['==', ['get', 'kind'], 'best'], 13, 0], 'circle-color': ACCENT, 'circle-opacity': 0.25, 'circle-blur': 0.6 } },
           { id: 'pts', type: 'circle', source: 'points', paint: {
@@ -221,7 +222,7 @@ export class OutdoorMap {
             layout: { 'text-field': ['get', 'name'], 'text-font': ['Noto Sans Bold'], 'text-size': 11, 'text-offset': [0, 1.4], 'text-anchor': 'top', 'text-padding': 2 },
             paint: { 'text-color': FOOD, 'text-halo-color': MAP.halo, 'text-halo-width': 1.4 } },
           // the step you tapped in the directions
-          { id: 'focus-halo', type: 'circle', source: 'focus', paint: { 'circle-radius': 18, 'circle-color': '#ffd29a', 'circle-opacity': 0.25, 'circle-blur': 0.5 } },
+          { id: 'focus-halo', type: 'circle', source: 'focus', paint: { 'circle-radius': 18, 'circle-color': ACCENT_HI, 'circle-opacity': 0.25, 'circle-blur': 0.5 } },
           { id: 'focus', type: 'circle', source: 'focus', paint: { 'circle-radius': 6, 'circle-color': '#ffffff', 'circle-stroke-color': ACCENT, 'circle-stroke-width': 3 } },
           // names fade in as you zoom: big buildings first, lots and small buildings when you're close
           { id: 'bld-names', type: 'symbol', source: 'labels', minzoom: 16, filter: ['==', ['get', 'type'], 'building'],
@@ -569,14 +570,16 @@ export class OutdoorMap {
     this.floatRaf = requestAnimationFrame(tick);
   }
 
-  /** Repaint the accent-coloured layers after the accent changes (no reload needed). */
+  /** Repaint everything accent-coloured — the route included — after the colour changes (no reload needed). */
   setAccent(hex) {
     if (!this.map.isStyleLoaded()) return;
+    const hi = cssVar('--accent-hi', hex);
     const set = (layer, prop, v) => this.map.getLayer(layer) && this.map.setPaintProperty(layer, prop, v);
     set('campus-fill', 'fill-color', hex);
     set('campus-line', 'line-color', hex);
-    set('route-glow', 'line-color', hex);
-    set('focus-halo', 'circle-color', hex);
+    set('route-glow', 'line-color', hex);   // the soft halo under the walking route
+    set('route', 'line-color', hi);         // the bright line you follow
+    set('focus-halo', 'circle-color', hi);
   }
 
   setRoute(lls) {

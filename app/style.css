@@ -168,11 +168,11 @@ body.picking .topbar, body.picking .panel { display: none !important; }
 .tag {
   font: 600 12px "Segoe UI", system-ui, sans-serif; color: var(--text); white-space: nowrap; pointer-events: none;
   background: var(--glass-2); border: 1px solid var(--line); border-radius: 10px; padding: 5px 9px;
-  backdrop-filter: blur(6px); box-shadow: 0 6px 20px #0008;
+  backdrop-filter: blur(6px); box-shadow: 0 6px 20px var(--shadow);
 }
 .tag b { color: var(--i-accent, var(--accent-hi)); margin-right: 4px; }
 .tag small { display: block; color: var(--muted); font-weight: 400; font-size: 11px; }
-.tag.dest { border-color: var(--i-accent, var(--accent)); font-size: 13px; box-shadow: 0 0 18px #0000003d, 0 6px 20px #0008; }
+.tag.dest { border-color: var(--i-accent, var(--accent)); font-size: 13px; box-shadow: 0 0 18px #0000003d, 0 6px 20px var(--shadow); }
 .tag.start { border-color: var(--i-accent, var(--accent)); }
 .tag.hint { font-size: 11px; padding: 3px 7px; color: var(--i-accent, var(--accent-hi)); }
 .tag.hover { border-color: var(--i-hover, var(--accent-hi)); }
@@ -188,7 +188,7 @@ body.picking .topbar, body.picking .panel { display: none !important; }
 .maplibregl-ctrl-attrib-button { filter: invert(1); }
 .bld-popup .maplibregl-popup-content {
   background: var(--glass-2); color: var(--text); border: 1px solid var(--line); border-radius: 10px; padding: 6px 10px;
-  font-size: 13px; backdrop-filter: blur(6px); box-shadow: 0 6px 20px #0008;
+  font-size: 13px; backdrop-filter: blur(6px); box-shadow: 0 6px 20px var(--shadow);
 }
 .bld-popup .maplibregl-popup-content small { display: block; color: var(--accent-hi); font-size: 11px; }
 .bld-popup .maplibregl-popup-tip { display: none; }
@@ -293,7 +293,7 @@ body.picking .topbar, body.picking .panel { display: none !important; }
 .toast {
   position: fixed; z-index: 70; left: 50%; bottom: 22px; transform: translate(-50%, 20px); opacity: 0; pointer-events: none;
   background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 10px 16px; font-size: 14px;
-  box-shadow: 0 10px 30px #000a; transition: opacity .2s, transform .2s; max-width: calc(100% - 32px);
+  box-shadow: 0 10px 30px var(--shadow); transition: opacity .2s, transform .2s; max-width: calc(100% - 32px);
 }
 .toast.show { opacity: 1; transform: translate(-50%, 0); }
 
@@ -375,7 +375,7 @@ button:focus:not(:focus-visible) { outline: none; }
 .park-prompt {
   position: fixed; z-index: 40; left: 50%; bottom: 18px; transform: translateX(-50%); width: min(520px, calc(100% - 24px));
   display: flex; gap: 10px; align-items: center; background: var(--card); border: 1px solid var(--accent);
-  border-radius: 14px; padding: 12px; box-shadow: 0 10px 30px #000a;
+  border-radius: 14px; padding: 12px; box-shadow: 0 10px 30px var(--shadow);
 }
 .park-prompt div { flex: 1; }
 .park-prompt small { display: block; color: var(--muted); }
@@ -391,7 +391,7 @@ button:focus:not(:focus-visible) { outline: none; }
   animation: me-ripple 2s ease-out infinite;
 }
 .me-dot i {
-  width: 14px; height: 14px; background: #fff; border: 3px solid var(--accent); transform: rotate(45deg);
+  width: 14px; height: 14px; background: color-mix(in srgb, var(--accent) 16%, #fff); border: 3px solid var(--accent); transform: rotate(45deg);
   box-shadow: 0 0 14px var(--accent); animation: me-breathe 2s ease-in-out infinite;
 }
 @keyframes me-ripple { from { transform: rotate(45deg) scale(.7); opacity: .9; } to { transform: rotate(45deg) scale(2.4); opacity: 0; } }
@@ -450,7 +450,7 @@ button:focus:not(:focus-visible) { outline: none; }
 .nav-banner {
   position: absolute; z-index: 6; top: 12px; left: 12px; right: 12px; max-width: 560px; margin: 0 auto;
   display: flex; gap: 14px; align-items: center; padding: 14px 16px; border-radius: 18px;
-  background: var(--glass-3); border: 1px solid var(--line); box-shadow: 0 12px 34px #000a; backdrop-filter: blur(10px);
+  background: var(--glass-3); border: 1px solid var(--line); box-shadow: 0 12px 34px var(--shadow); backdrop-filter: blur(10px);
   animation: nav-drop .35s cubic-bezier(.2, .8, .2, 1);
 }
 .nav-turn {
@@ -467,7 +467,7 @@ button:focus:not(:focus-visible) { outline: none; }
 .nav-bar {
   position: absolute; z-index: 6; left: 12px; right: 12px; bottom: 16px; max-width: 560px; margin: 0 auto;
   display: flex; gap: 10px; align-items: center; padding: 10px; border-radius: 18px;
-  background: var(--glass-3); border: 1px solid var(--line); box-shadow: 0 12px 34px #000a; backdrop-filter: blur(10px);
+  background: var(--glass-3); border: 1px solid var(--line); box-shadow: 0 12px 34px var(--shadow); backdrop-filter: blur(10px);
   animation: nav-rise .35s cubic-bezier(.2, .8, .2, 1);
 }
 .nav-end {
@@ -488,7 +488,7 @@ button:focus:not(:focus-visible) { outline: none; }
 .nav-recenter {
   position: absolute; z-index: 6; left: 50%; bottom: 96px; transform: translateX(-50%);
   padding: 10px 18px; border-radius: 999px; border: 1px solid var(--accent); background: var(--glass-3); color: var(--accent-hi);
-  font-weight: 700; font-size: 14px; cursor: pointer; box-shadow: 0 8px 22px #0008;
+  font-weight: 700; font-size: 14px; cursor: pointer; box-shadow: 0 8px 22px var(--shadow);
 }
 .start-btn { font-size: 17px; }
 @keyframes nav-drop { from { transform: translateY(-24px); opacity: 0; } }
@@ -518,7 +518,7 @@ body.map-mode .topbar { display: none; }
 .map-top > * { pointer-events: auto; }
 .searchbar {
   display: flex; align-items: center; gap: 2px; height: 52px; padding: 0 7px 0 4px; background: var(--surface);
-  border: 1px solid var(--line); border-radius: 26px; box-shadow: 0 6px 24px #0009;
+  border: 1px solid var(--line); border-radius: 26px; box-shadow: 0 6px 24px var(--shadow);
 }
 .searchbar-field {
   flex: 1; min-width: 0; height: 100%; display: flex; align-items: center; gap: 10px; padding: 0 8px;
@@ -566,15 +566,19 @@ body.map-mode .topbar { display: none; }
 .campus-swap:active .swap { transform: rotate(360deg); }
 @media (prefers-reduced-motion: reduce) { .campus-swap .swap { transition: opacity .2s; } }
 .scroll-row { display: flex; flex-wrap: nowrap; overflow-x: auto; gap: 8px; margin: 0; padding: 2px 0; scrollbar-width: none; }
+/* A scroller clips anything leaving its padding box, which sliced the chips' shadows into a straight line
+   across the row and showed up as a rectangle over the map. The padding gives the shadows room; the matching
+   negative margin takes the space back, so the row sits exactly where it did and now scrolls edge to edge. */
+.map-chips { padding: 16px 10px; margin: -16px -10px; }
 .scroll-row::-webkit-scrollbar { display: none; }
 .scroll-row .chip { flex: none; white-space: nowrap; }
-.map-chips .chip { background: var(--glass-3); border-radius: 18px; padding: 7px 12px; box-shadow: 0 3px 12px #0008; backdrop-filter: blur(8px); }
+.map-chips .chip { background: var(--glass-3); border-radius: 18px; padding: 7px 12px; box-shadow: 0 3px 12px var(--shadow); backdrop-filter: blur(8px); }
 #outdoor[data-mode="nav"] .map-chips { display: none; } /* a place is open: just the bar */
 #outdoor[data-mode="park"] .map-top, #outdoor.navigating .map-top { display: none; }
 
 #outdoor .map-sheet {
   position: absolute; z-index: 5; left: 0; right: 0; bottom: 0; height: calc(100% - 64px); max-height: none;
-  border-top: 0; border-radius: 18px 18px 0 0; box-shadow: 0 -10px 30px #0008; padding: 4px 16px 28px;
+  border-top: 0; border-radius: 18px 18px 0 0; box-shadow: 0 -10px 30px var(--shadow); padding: 4px 16px 28px;
   overflow: hidden; touch-action: none; transition: transform .28s cubic-bezier(.2, .8, .2, 1); will-change: transform;
 }
 #outdoor .map-sheet.full { overflow-y: auto; touch-action: pan-y; }
@@ -628,7 +632,7 @@ body.map-mode .topbar { display: none; }
   .sheet-grip { display: none; }
   .search-overlay {
     inset: 12px auto 12px 12px; width: 392px; border: 1px solid var(--line); border-radius: 16px; overflow: hidden;
-    box-shadow: 0 12px 40px #000a;
+    box-shadow: 0 12px 40px var(--shadow);
   }
   .search-head { padding-top: 6px; padding-bottom: 6px; }
 }
