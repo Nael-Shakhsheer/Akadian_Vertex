@@ -131,6 +131,20 @@ The engine is built so that a school's non-public schematics can be processed wi
   - turns are spoken ahead ("In 350 feet, turn left…") and again at the turn; your marker gets a heading pointer; the screen stays awake;
   - moving the map yourself pauses following and shows **Re-center**; leaving the route reroutes (it's recomputed from where you are every few metres);
   - at the destination it says you've arrived; for a room it hands over to the indoor route at the entrance. The back gesture ends navigation and stays on the map.
+- **Home screen (iPhone and Android):** Settings has a walkthrough. On iOS it names the three taps — Share,
+  Add to Home Screen, Add — and offers a button that opens the share sheet, which is as far as the platform
+  allows: a website cannot install itself, and it warns you if you are not in Safari, which is the only browser
+  iOS permits this from. On Android and desktop Chrome it installs in one tap. **Pin a place** turns any saved
+  place into its own home-screen icon that opens straight onto that route, since every URL added becomes a
+  separate icon.
+  - Icons are supplied at 120, 152, 167 and 180 px, and a launch image at every current iPhone and iPad size,
+    portrait and landscape (38 of them) — without an exactly matching one iOS shows a blank screen while the app
+    starts. `python tools/make_ios_assets.py` regenerates both from `app/icons/mark.svg` and prints the `<link>`
+    tags. The launch images use the Standard base: iOS picks one before the app runs, so it cannot follow the
+    appearance setting.
+  - **Not possible:** a true iOS *widget* (the resizable kind in the widget gallery). Those are built with
+    WidgetKit and only a native app can provide them; no web API exposes them. That would mean a small native
+    app wrapping this one, an Apple Developer account and App Store review.
 - **Installable and offline:**
   - The app can be added to a phone's home screen (manifest and icons).
   - A service worker keeps it working with a weak campus signal. App files load fresh when online, and libraries, tiles and fonts come from the cache.
@@ -210,6 +224,7 @@ tools/vt_buildings.py   Torgersen Hall: redraws the CAD plans in the engine's co
 tools/seed_vt.py        loads the Virginia Tech demo (campus from OSM + Torgersen Hall)
 tools/seed_gmu.py       loads the GMU demo from public sources
 tools/export_static.py  static copy of the public app + published maps (docs/, for GitHub Pages)
+tools/make_ios_assets.py   home-screen icons + per-device launch images, from app/icons/mark.svg
 docs/                   that static copy (generated; re-run the export instead of editing)
 tests/test_engine.py    end-to-end engine test (temp folder)
 tests/test_parking.mjs  parking auto-prompt + on-device storage (node)

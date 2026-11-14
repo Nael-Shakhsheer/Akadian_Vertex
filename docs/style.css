@@ -657,3 +657,23 @@ body.map-mode .topbar { display: none; }
 .accent-row button.on { border-color: var(--accent-hi); }
 .icon-btn.round { border-radius: 50%; }
 .icon-btn.round svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 1.7; }
+
+/* adding the app to a phone's home screen */
+.install-box { font-size: 14px; }
+.install-box .muted { margin: 0 0 10px; }
+.install-done { color: var(--accent-hi); font-weight: 600; margin: 0 0 8px; }
+.install-warn {
+  margin: 0 0 10px; padding: 10px 12px; border-radius: 10px; font-size: 13px;
+  background: color-mix(in srgb, var(--accent) 14%, transparent); border: 1px solid var(--accent);
+}
+.install-steps { counter-reset: none; margin: 4px 0 14px; }
+.install-steps li { display: flex; gap: 10px; align-items: flex-start; padding: 9px 0; counter-increment: none; }
+.install-steps li::before { content: none; }
+.install-steps .step-n {
+  flex: none; width: 24px; height: 24px; border-radius: 50%; background: var(--accent); color: var(--on-accent);
+  display: grid; place-items: center; font-size: 13px; font-weight: 700;
+}
+.ios-glyph {
+  width: 17px; height: 17px; vertical-align: -3px; fill: none; stroke: currentColor; stroke-width: 1.8;
+  stroke-linecap: round; stroke-linejoin: round; color: var(--accent-hi);
+}

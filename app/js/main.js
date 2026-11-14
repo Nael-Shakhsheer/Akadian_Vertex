@@ -1495,9 +1495,120 @@ $('#clearHistory').onclick = () => {
   toast('History cleared');
 };
 
+// ---------- putting the app on the home screen ----------
+// On iOS this is the only route: a web page cannot install itself, and iOS home-screen *widgets* need a native
+// app built with WidgetKit, which a website cannot provide. What it can do is open the share sheet, which is
+// where "Add to Home Screen" lives, and say exactly what to tap. Once added, the icons and launch images in
+// index.html make it open like an app rather than a browser tab.
+const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent)
+  || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1); // iPadOS reports itself as a Mac
+const isSafari = /^((?!chrome|android|crios|fxios|edgios).)*safari/i.test(navigator.userAgent);
+const installed = () => matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
+
+let installPrompt = null; // Android/desktop Chrome hands us one of these
+addEventListener('beforeinstallprompt', (e) => { e.preventDefault(); installPrompt = e; renderInstall(); });
+addEventListener('appinstalled', () => { installPrompt = null; renderInstall(); toast('Added to your home screen'); });
+
+const STEP = (n, html) => `<li><span class="step-n">${n}</span><span>${html}</span></li>`;
+const SHARE_ICON = '<svg class="ios-glyph" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 15V3m0 0L8.5 6.5M12 3l3.5 3.5"/><path d="M6 11H4.5v9.5h15V11H18"/></svg>';
+
+function renderInstall() {
+  const box = $('#installBox');
+  if (installed()) {
+    box.innerHTML = `<p class="install-done">✓ Already on your home screen. You're running it as an app.</p>
+      <p class="muted">Add a second icon for a place you go often with <b>Pin a place</b> below.</p>${pinBlock()}`;
+    wirePin();
+    return;
+  }
+  if (isIOS) {
+    box.innerHTML = `<p class="muted">Add Akadian Vertex to your home screen and it opens full screen, with its own
+        icon and launch screen, and keeps working on a weak signal.</p>
+      ${isSafari ? '' : `<p class="install-warn">You're not in Safari. iOS only allows this from <b>Safari</b> —
+        open <b>${esc(location.host)}</b> there first.</p>`}
+      <ol class="steps install-steps">
+        ${STEP(1, `Tap the <b>Share</b> button ${SHARE_ICON} at the bottom of Safari`)}
+        ${STEP(2, 'Scroll down and tap <b>Add to Home Screen</b>')}
+        ${STEP(3, 'Tap <b>Add</b> — the icon appears on your home screen')}
+      </ol>
+      ${navigator.share ? '<button id="openShare" class="btn primary">Open the Share sheet</button>' : ''}
+      <p class="muted small-print">iOS won't let a website open that sheet on its own, so the button hands over
+        to it; tap Add to Home Screen from there.</p>${pinBlock()}`;
+    if (navigator.share) $('#openShare').onclick = shareForInstall;
+    wirePin();
+    return;
+  }
+  box.innerHTML = installPrompt
+    ? `<p class="muted">Install Akadian Vertex so it opens in its own window with its own icon.</p>
+       <button id="doInstall" class="btn primary">Add to home screen</button>${pinBlock()}`
+    : `<p class="muted">Open this page on your phone to add it to the home screen. On an iPhone use Safari and
+       tap Share, then Add to Home Screen; on Android, Chrome's menu offers Install.</p>${pinBlock()}`;
+  if (installPrompt) {
+    $('#doInstall').onclick = async () => {
+      installPrompt.prompt();
+      await installPrompt.userChoice;
+      installPrompt = null;
+      renderInstall();
+    };
+  }
+  wirePin();
+}
+
+async function shareForInstall() {
+  try {
+    await navigator.share({ title: 'Akadian Vertex', url: location.href });
+  } catch (e) {
+    if (e.name !== 'AbortError') toast('Couldn’t open the share sheet. Use Safari’s Share button instead.');
+  }
+}
+
+// Each URL added to the home screen becomes its own icon, so a saved place can be a one-tap route.
+function pinBlock() {
+  const saved = savedPlaces();
+  return `<h3 class="set-head">Pin a place</h3>
+    ${saved.length
+      ? `<p class="muted">Put one of your saved places straight on the home screen: its icon opens the app and
+          starts the route. Pick one, then add it the same way.</p>
+         <div id="pinRow" class="chips">${saved.map((p, i) =>
+          `<button class="chip" data-pin="${i}">${KIND_ICON[p.kind] || '📍'} ${esc(p.title)}</button>`).join('')}</div>`
+      : `<p class="muted">Save a place first (☆ Save place on any destination) and you can pin it here.</p>`}`;
+}
+
+function wirePin() {
+  $('#installBox').querySelectorAll('[data-pin]').forEach((el) => (el.onclick = async () => {
+    const p = savedPlaces()[el.dataset.pin];
+    const url = new URL(placeUrl(p), location.href).href;
+    if (navigator.share) {
+      try { await navigator.share({ title: p.title, url }); return; } catch (e) { if (e.name === 'AbortError') return; }
+    }
+    try { await navigator.clipboard.writeText(url); toast(`Link to ${p.title} copied — open it, then Add to Home Screen`); }
+    catch { toast('Open this place, then use Share → Add to Home Screen'); }
+  }));
+}
+
+/** The deep link that reopens a saved place, so its home-screen icon lands straight on it. */
+function placeUrl(p) {
+  const q = `campus=${encodeURIComponent(CAMPUS)}`;
+  if (p.kind === 'room') { // roomKey is "<building id>|<room id>", or just the room id in the main building
+    const [bld, id] = p.key.includes('|') ? p.key.split('|') : [null, p.key];
+    return `?${q}&to=${encodeURIComponent(id)}${bld ? `&in=${encodeURIComponent(bld)}` : ''}`;
+  }
+  if (p.kind === 'building') return `?${q}&b=${encodeURIComponent(p.key)}`;
+  if (p.kind === 'entrance') return `?${q}&b=${encodeURIComponent(p.key.slice(0, p.key.indexOf(':')))}`;
+  if (p.kind === 'stop') {
+    const i = (campus.transit?.stops || []).findIndex((s) => s.name === p.key);
+    return i >= 0 ? `?${q}&stop=${i}` : `?${q}`;
+  }
+  if (p.kind === 'food') {
+    const i = (campus.food || []).findIndex((f) => `${f.name}@${f.lat}` === p.key);
+    return i >= 0 ? `?${q}&food=${i}` : `?${q}`;
+  }
+  return `?${q}`;
+}
+
 function openSettings() {
   renderAppearance();
   renderHistory();
+  renderInstall();
   $('#settings').classList.remove('hidden');
   $('#settingsBack').focus({ preventScroll: true });
 }
