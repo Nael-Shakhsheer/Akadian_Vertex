@@ -84,6 +84,7 @@ const FOOD_SPLIT_ZOOM = 18.3; // a building with several spots shows one icon un
 export class OutdoorMap {
   constructor(container, campus, { campusId, data, onBuildingClick, onBuildingOpen, onAreaClick, onMapClick, onStopClick, onFoodClick, stopNote } = {}) {
     const base = new URL(data, location.href).href.replace(/\/$/, ''); // MapLibre wants absolute URLs
+    this.container = container; // kept so the marker bob can tell whether the map is on screen at all
     this.campus = campus;
     this.enabled = new Set(CATEGORIES.map((c) => c.id));
     const fc = {
@@ -545,6 +546,9 @@ export class OutdoorMap {
    * lot reads as an object standing at that spot rather than a sticker painted on it. The three families bob
    * out of step with each other. Reduced motion gets the lift and the shadow but no movement.
    */
+  /** Hold the markers still while something covers the map; they pick up where they left off. */
+  setFloatPaused(on) { this.floatPaused = !!on; }
+
   floatMarkers() {
     const anchor = (id, prop) => this.map.getLayer(id) && this.map.setPaintProperty(id, `${prop}-anchor`, 'viewport');
     for (const [id, prop] of FLOATERS) anchor(id, prop);
@@ -568,7 +572,11 @@ export class OutdoorMap {
     let last = 0;
     const tick = (now) => {
       this.floatRaf = requestAnimationFrame(tick);
-      if (document.hidden || now - last < 33) return; // ~30fps: it is a slow bob, not an animation reel
+      // Every frame of this marks the map dirty and makes it redraw, so it only runs while the map is actually
+      // on screen: not behind the search or settings sheet, not while a building's inside is open, and not in
+      // a backgrounded tab. Without this the map repainted forever, wherever you were in the app.
+      if (document.hidden || this.floatPaused || !this.container.offsetParent) return;
+      if (now - last < 33) return; // ~30fps: it is a slow bob, not an animation reel
       last = now;
       place(now);
     };

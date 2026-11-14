@@ -189,6 +189,7 @@ function setSearching(on) {
   searching = on;
   $('#search').classList.toggle('hidden', !on);
   document.body.classList.toggle('searching', on);
+  outdoor.setFloatPaused(on); // the map is covered: stop bobbing the markers and redrawing it
   if (on) renderHome();
 }
 function openSearch(q = '') {
@@ -1587,13 +1588,14 @@ async function shareForInstall() {
 }
 
 function openSettings() {
+  outdoor.setFloatPaused(true); // same again: nothing to see behind the settings sheet
   renderAppearance();
   renderHistory();
   renderInstall();
   $('#settings').classList.remove('hidden');
   $('#settingsBack').focus({ preventScroll: true });
 }
-function closeSettings() { $('#settings').classList.add('hidden'); }
+function closeSettings() { $('#settings').classList.add('hidden'); outdoor.setFloatPaused(searching); }
 $('#settingsBtn').onclick = openSettings;
 $('#settingsBack').onclick = closeSettings;
 
