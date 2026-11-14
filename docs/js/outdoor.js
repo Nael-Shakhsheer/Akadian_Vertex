@@ -354,19 +354,39 @@ export class OutdoorMap {
     this.buildFilterBar(container);
     // One tap picks a building (directions to it); two taps open its inside. The single-tap action waits
     // out the double-tap window, so one gesture never fires both. Taps on anything else act at once.
+    // The second tap is spotted here rather than through the map's `dblclick`, which a phone does not reliably
+    // fire. While a building's tap is pending, the map's own double-tap zoom is switched off so the two
+    // gestures cannot both happen; it goes straight back on afterwards.
     this.tapTimer = null;
+    this.lastTap = { id: null, at: 0, x: 0, y: 0 };
+    const endTap = () => {
+      clearTimeout(this.tapTimer);
+      this.tapTimer = null;
+      this.map.doubleClickZoom.enable();
+    };
     this.map.on('click', (e) => {
       if (this.stopClicked) { this.stopClicked = false; return; } // a stop handled this tap
       const f = this.map.queryRenderedFeatures(e.point, { layers: ['bld-3d', 'bld-ghost'] })[0];
       const bld = f ? campus.buildings[f.id] : null;
       const fallthrough = () => onMapClick?.([e.lngLat.lat, e.lngLat.lng], bld);
       if (bld && onBuildingClick) {
+        const now = performance.now();
+        const again = this.lastTap.id === f.id && now - this.lastTap.at < 400
+          && Math.hypot(e.point.x - this.lastTap.x, e.point.y - this.lastTap.y) < 30;
+        this.lastTap = { id: f.id, at: now, x: e.point.x, y: e.point.y };
+        if (again && onBuildingOpen) {
+          endTap();
+          this.lastTap.id = null; // a third tap starts over
+          onBuildingOpen(bld);
+          return;
+        }
         clearTimeout(this.tapTimer);
+        this.map.doubleClickZoom.disable();
         this.tapTimer = setTimeout(() => {
-          this.tapTimer = null;
+          endTap();
           // the handler returns false to let the tap through (demo mode: tap anywhere to set your start)
           if (onBuildingClick(bld) === false) fallthrough();
-        }, 260);
+        }, 300);
         return;
       }
       const lot = onAreaClick && this.map.queryRenderedFeatures(e.point, { layers: ['park-badge', 'park-letter', 'area-fill'] })
@@ -374,13 +394,9 @@ export class OutdoorMap {
       if (lot && onAreaClick(campus.areas[lot.properties.i]) !== false) return;
       fallthrough();
     });
+    // a mouse still sends dblclick, and stopping it here keeps the map from zooming under the open building
     this.map.on('dblclick', (e) => {
-      const f = this.map.queryRenderedFeatures(e.point, { layers: ['bld-3d', 'bld-ghost'] })[0];
-      if (!f || !onBuildingOpen) return;
-      e.preventDefault(); // the second tap would otherwise zoom the map
-      clearTimeout(this.tapTimer);
-      this.tapTimer = null;
-      onBuildingOpen(campus.buildings[f.id]);
+      if (this.map.queryRenderedFeatures(e.point, { layers: ['bld-3d', 'bld-ghost'] })[0]) e.preventDefault();
     });
     this.ready = new Promise((r) => this.map.on('load', r));
     this.ready.then(() => this.floatMarkers());
