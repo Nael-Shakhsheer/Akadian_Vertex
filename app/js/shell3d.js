@@ -250,11 +250,11 @@ export class ShellView {
 }
 
 // ---------- the car ----------
-const CAR_ORANGE = 0xf0a04a;
 const CAR_SCALE = 1.3; // a touch larger than life so it reads from across a deck
 
 /** A low-poly car, nose along +x, sitting on y = 0, glowing orange (blooms with the scene). */
 export function makeCar() {
+  const CAR_ORANGE = THEME.accent; // the car is painted in whatever accent is set
   const car = new THREE.Group();
   const glowLine = new THREE.LineBasicMaterial({ color: new THREE.Color(CAR_ORANGE).multiplyScalar(3), toneMapped: false });
   const add = (geo, mat, edges = true) => {
@@ -264,7 +264,7 @@ export function makeCar() {
     return m;
   };
   const paint = new THREE.MeshStandardMaterial({ color: CAR_ORANGE, emissive: CAR_ORANGE, emissiveIntensity: 0.3, roughness: 0.35, metalness: 0.3 });
-  const glass = new THREE.MeshStandardMaterial({ color: 0x3a2410, emissive: CAR_ORANGE, emissiveIntensity: 0.25, roughness: 0.1, metalness: 0.6 });
+  const glass = new THREE.MeshStandardMaterial({ color: new THREE.Color(CAR_ORANGE).multiplyScalar(0.22), emissive: CAR_ORANGE, emissiveIntensity: 0.25, roughness: 0.1, metalness: 0.6 });
   const tyre = new THREE.MeshStandardMaterial({ color: 0x111215, roughness: 0.9 });
   const light = new THREE.MeshBasicMaterial({ color: new THREE.Color(0xffe9c8).multiplyScalar(3), toneMapped: false });
 

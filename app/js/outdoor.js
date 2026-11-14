@@ -1,5 +1,6 @@
 // Outdoor map: the campus in 3D (extruded building shells), everything around it flat 2D.
 // Uses MapLibre GL (global `maplibregl`) over darkened OpenStreetMap raster tiles.
+import { mix } from './themes.js';
 
 // The accent comes from the appearance the app booted with (js/themes.js sets it on <html>).
 const cssVar = (name, fallback) =>
@@ -7,6 +8,10 @@ const cssVar = (name, fallback) =>
 const BASE = document.documentElement.dataset.base === 'light' ? 'light' : 'dark';
 const ACCENT = cssVar('--accent', '#f0a04a');
 const ACCENT_HI = cssVar('--accent-hi', '#ffb866'); // the brighter end, for the route core and the focus halo
+/** The parked car's paintwork, mixed from whatever accent is set. Head and tail lights stay as lights. */
+const carColors = (hex) => ({
+  body: hex, cabin: mix(hex, '#ffffff', 0.45), light: mix(hex, '#ffffff', 0.85),
+});
 const NEUTRAL = BASE === 'light' ? '#c3c8d2' : '#2b2f37';
 
 // Basemap cartography per base. The campus itself is drawn from our own data on top of this; these are the
@@ -161,13 +166,13 @@ export class OutdoorMap {
             'fill-extrusion-vertical-gradient': true } },
           // your parked car: a small glowing 3D model at its spot (and deck level)
           { id: 'car-glow', type: 'circle', source: 'car', filter: ['==', ['get', 'part'], 'glow'],
-            paint: { 'circle-color': '#f0a04a', 'circle-blur': 1, 'circle-opacity': 0.55,
+            paint: { 'circle-color': ACCENT, 'circle-blur': 1, 'circle-opacity': 0.55,
               'circle-radius': ['interpolate', ['exponential', 2], ['zoom'], 14, 6, 17, 16, 20, 110] } },
           { id: 'car-pad', type: 'fill-extrusion', source: 'car', filter: ['==', ['get', 'part'], 'pad'],
-            paint: { 'fill-extrusion-color': '#ff9a2e', 'fill-extrusion-base': ['get', 'base'], 'fill-extrusion-height': ['get', 'top'],
+            paint: { 'fill-extrusion-color': ACCENT, 'fill-extrusion-base': ['get', 'base'], 'fill-extrusion-height': ['get', 'top'],
               'fill-extrusion-opacity': 0.45 } },
           { id: 'car-3d', type: 'fill-extrusion', source: 'car', filter: ['all', ['!=', ['get', 'part'], 'glow'], ['!=', ['get', 'part'], 'pad']],
-            paint: { 'fill-extrusion-color': ['match', ['get', 'part'], 'body', '#ff9426', 'cabin', '#ffc47a', 'light', '#fff4e0', '#141518'],
+            paint: { 'fill-extrusion-color': carPaint(ACCENT),
               'fill-extrusion-base': ['get', 'base'], 'fill-extrusion-height': ['get', 'top'], 'fill-extrusion-opacity': 1,
               'fill-extrusion-vertical-gradient': false } },
           // the deck your car is in turns to glass so the car shows through (drawn after the car on purpose)
@@ -580,6 +585,9 @@ export class OutdoorMap {
     set('route-glow', 'line-color', hex);   // the soft halo under the walking route
     set('route', 'line-color', hi);         // the bright line you follow
     set('focus-halo', 'circle-color', hi);
+    set('car-glow', 'circle-color', hex);     // the saved parking spot follows the colour too
+    set('car-pad', 'fill-extrusion-color', hex);
+    set('car-3d', 'fill-extrusion-color', carPaint(hex));
   }
 
   setRoute(lls) {
@@ -644,6 +652,12 @@ export class OutdoorMap {
 }
 
 function empty() { return { type: 'FeatureCollection', features: [] }; }
+
+/** The car's per-part colours as a MapLibre match expression. */
+function carPaint(hex) {
+  const c = carColors(hex);
+  return ['match', ['get', 'part'], 'body', c.body, 'cabin', c.cabin, 'light', c.light, '#141518'];
+}
 const REDUCED = () => matchMedia('(prefers-reduced-motion: reduce)').matches;
 
 // A low-poly car as extruded boxes: body, cabin, wheels, lights. Same proportions as the 3D building view.
