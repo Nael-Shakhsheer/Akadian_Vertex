@@ -532,10 +532,30 @@ body.map-mode .topbar { display: none; }
   font-size: 18px; cursor: pointer; display: grid; place-items: center;
 }
 .icon-btn:hover { background: var(--raised); }
-.campus-chip {
-  width: 36px; height: 36px; flex: none; border-radius: 50%; border: 2px solid var(--c);
-  background: color-mix(in srgb, var(--c) 40%, var(--card)); color: #fff; font-weight: 800; font-size: 12px; cursor: pointer;
+/* Campus switcher, in the search bar only: the campus monogram ringed by two arrows that cycle, so the swap
+   reads at a glance. The two arcs and their heads are exact 180° rotations of each other about the centre, and
+   each head's tip lands on the arc's own radius, so the whole thing sits in a true circle. The monogram is in
+   the campus's own colour — a monogram, not the university's logo, which is a trademark and not ours to ship. */
+.campus-swap {
+  position: relative; flex: none; width: 44px; height: 44px; padding: 0; border: 0;
+  background: transparent; cursor: pointer; color: var(--accent); display: grid; place-items: center;
 }
+.swap-wrap { position: absolute; inset: 0; display: grid; place-items: center; }
+.campus-swap .swap {
+  position: absolute; inset: 0; width: 100%; height: 100%; opacity: .72;
+  transition: transform .5s cubic-bezier(.2, .8, .2, 1), opacity .2s;
+}
+.campus-swap .swap-arc { fill: none; stroke: currentColor; stroke-width: 2.8; stroke-linecap: round; }
+.campus-swap .swap-tip { fill: currentColor; }
+.campus-swap .seal {
+  position: relative; width: 22px; height: 22px; border-radius: 50%; display: grid; place-items: center;
+  background: color-mix(in srgb, var(--c) 45%, var(--card)); border: 1.5px solid var(--c);
+  color: #fff; font-weight: 800; font-size: 9.5px; letter-spacing: .02em;
+}
+:root[data-base="light"] .campus-swap .seal { background: var(--c); border-color: var(--c); }
+.campus-swap:hover .swap, .campus-swap:focus-visible .swap { opacity: 1; transform: rotate(180deg); }
+.campus-swap:active .swap { transform: rotate(360deg); }
+@media (prefers-reduced-motion: reduce) { .campus-swap .swap { transition: opacity .2s; } }
 .scroll-row { display: flex; flex-wrap: nowrap; overflow-x: auto; gap: 8px; margin: 0; padding: 2px 0; scrollbar-width: none; }
 .scroll-row::-webkit-scrollbar { display: none; }
 .scroll-row .chip { flex: none; white-space: nowrap; }

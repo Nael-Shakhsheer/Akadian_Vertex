@@ -165,7 +165,7 @@
         <div class="searchbar">
           <button id="searchOpen" class="searchbar-field" aria-label="Search the campus"><span id="searchText" class="searchbar-text">Search rooms, buildings, food</span></button>
           <button id="searchClose" class="icon-btn hidden" aria-label="Close this place"><span aria-hidden="true">✕</span></button>
-          <button id="campusBtn" class="campus-chip" aria-label="Change campus" title="Change campus"></button>
+          <button id="campusBtn" class="campus-swap" aria-label="Change campus" title="Change campus"><span class="swap-wrap"><svg class="swap" viewBox="0 0 48 48" aria-hidden="true"><path class="swap-arc" d="M6.77 20.96A17.5 17.5 0 0 1 39.16 15.25"/><polygon class="swap-tip" points="0,0 -6.4,-3.9 -6.4,3.9" transform="translate(41.23 20.96) rotate(80)"/><path class="swap-arc" d="M41.23 27.04A17.5 17.5 0 0 1 8.84 32.75"/><polygon class="swap-tip" points="0,0 -6.4,-3.9 -6.4,3.9" transform="translate(6.77 27.04) rotate(260)"/></svg><span class="seal" id="campusSeal"></span></span></button>
           <button id="settingsBtn" class="icon-btn round" aria-label="Settings" title="Settings">
             <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3.2"/><path d="M19.4 13.5a7.7 7.7 0 0 0 0-3l1.8-1.3-1.8-3.1-2.1.8a7.7 7.7 0 0 0-2.6-1.5L14.4 3h-3.6l-.3 2.3a7.7 7.7 0 0 0-2.6 1.5l-2.1-.8-1.8 3.1 1.8 1.3a7.7 7.7 0 0 0 0 3l-1.8 1.3 1.8 3.1 2.1-.8a7.7 7.7 0 0 0 2.6 1.5l.3 2.3h3.6l.3-2.3a7.7 7.7 0 0 0 2.6-1.5l2.1.8 1.8-3.1z"/></svg>
           </button>
@@ -204,7 +204,6 @@
       <div id="exploreSheet" class="hidden">
         <div class="home-head" data-peek>
           <div><b id="homeCampus">Campus map</b><small id="gpsStatus2" class="muted">Tap any building for its 3D model</small></div>
-          <button id="switchCampus" class="link small">Change campus</button>
         </div>
         <div id="carCard" class="car-card"></div>
         <div id="saved"></div>

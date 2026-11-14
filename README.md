@@ -134,9 +134,8 @@ The engine is built so that a school's non-public schematics can be processed wi
 - **Home screen (iPhone and Android):** Settings has a walkthrough. On iOS it names the three taps — Share,
   Add to Home Screen, Add — and offers a button that opens the share sheet, which is as far as the platform
   allows: a website cannot install itself, and it warns you if you are not in Safari, which is the only browser
-  iOS permits this from. On Android and desktop Chrome it installs in one tap. **Pin a place** turns any saved
-  place into its own home-screen icon that opens straight onto that route, since every URL added becomes a
-  separate icon.
+  iOS permits this from. On Android and desktop Chrome it installs in one tap. It adds the app itself: one icon,
+  one app — individual places do not get icons of their own.
   - Icons are supplied at 120, 152, 167 and 180 px, and a launch image at every current iPhone and iPad size,
     portrait and landscape (38 of them) — without an exactly matching one iOS shows a blank screen while the app
     starts. `python tools/make_ios_assets.py` regenerates both from `app/icons/mark.svg` and prints the `<link>`
@@ -170,6 +169,9 @@ The engine is built so that a school's non-public schematics can be processed wi
   - Road names appear from zoom 16 (main roads) and 17 (campus streets). Building and lot names fade in as you zoom.
 - **Indoor:** Three.js, using clean vector rooms at true scale with glowing outlines and a flowing route. Each building gets its own 3D view on first visit, and only the one on screen renders. Hover a room to see its name. Tap a room for its card: it's outlined and its floor shown, with **Directions from here** (the full trip: walk to the best entrance, then inside), **Route from the entrance** (when you're already inside), Save and Share. A step-free toggle keeps routes to elevators.
 - **Deep links** (good for QR codes): `?campus=vt&to=2060` for a room, `&in=gmu-research` to pick the building when several share a number, `?b=<OSM id>` for a building. Links without a campus open GMU, so older GMU links keep working.
+- **Campus switcher:** the badge at the end of the search bar — the campus monogram in its own colour, ringed by
+  two arrows that cycle and spin on hover. It is the only place the campus changes from. The monogram is the
+  campus's initials, not the university's logo: those are trademarks and not ours to ship.
 - **Search:** one box over the map covers rooms, entrances, lifts and stairwells, buildings, food and bus stops.
   Exact room numbers rank first, then initials (**JC** finds the Johnson Center, **MTC** the Math Tutoring Center),
   then names that start with what you typed, then anything containing it, with a typo pass behind that

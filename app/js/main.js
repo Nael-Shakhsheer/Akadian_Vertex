@@ -106,8 +106,12 @@ $('#campusName').textContent = CAMPUS_SHORT;
 $('#homeCampus').textContent = campus.card?.short || CAMPUS_SHORT;
 // the round campus badge at the end of the search bar (tap it to change campus), and the logo at its start
 const card = campus.card || {};
-$('#campusBtn').textContent = (card.short || CAMPUS_SHORT).split(/\s+/).filter((w) => /^[A-Z]/.test(w)).map((w) => w[0]).join('').slice(0, 3);
+// The badge is a monogram in the campus's own colour, ringed by two arrows that say it can be swapped.
+// (A monogram, not the university's logo: those are trademarks and not ours to ship.)
+const campusSeal = (card.short || CAMPUS_SHORT).split(/\s+/).filter((w) => /^[A-Z]/.test(w)).map((w) => w[0]).join('').slice(0, 3);
+$('#campusSeal').textContent = campusSeal;
 $('#campusBtn').style.setProperty('--c', card.accent || 'var(--accent)');
+$('#campusBtn').title = `${card.short || CAMPUS_SHORT} — tap to change campus`;
 $('#searchOpen').prepend($('.topbar .mark').cloneNode(true));
 
 const walk = campus.walk ? new WalkGraph(campus.walk) : null;
@@ -489,7 +493,6 @@ for (const [icon, label, q] of BROWSE) {
   c.onclick = () => openSearch(q);
   $('#mapChips').append(c);
 }
-$('#switchCampus').onclick = () => { location.href = location.pathname; }; // back to the campus picker
 
 // ---------- recent places (this device only) ----------
 const RECENT_KEY = `akadian:recent:${CAMPUS}`;
@@ -1515,9 +1518,7 @@ const SHARE_ICON = '<svg class="ios-glyph" viewBox="0 0 24 24" aria-hidden="true
 function renderInstall() {
   const box = $('#installBox');
   if (installed()) {
-    box.innerHTML = `<p class="install-done">✓ Already on your home screen. You're running it as an app.</p>
-      <p class="muted">Add a second icon for a place you go often with <b>Pin a place</b> below.</p>${pinBlock()}`;
-    wirePin();
+    box.innerHTML = `<p class="install-done">✓ Already on your home screen. You're running it as an app.</p>`;
     return;
   }
   if (isIOS) {
@@ -1532,16 +1533,15 @@ function renderInstall() {
       </ol>
       ${navigator.share ? '<button id="openShare" class="btn primary">Open the Share sheet</button>' : ''}
       <p class="muted small-print">iOS won't let a website open that sheet on its own, so the button hands over
-        to it; tap Add to Home Screen from there.</p>${pinBlock()}`;
+        to it; tap Add to Home Screen from there.</p>`;
     if (navigator.share) $('#openShare').onclick = shareForInstall;
-    wirePin();
     return;
   }
   box.innerHTML = installPrompt
     ? `<p class="muted">Install Akadian Vertex so it opens in its own window with its own icon.</p>
-       <button id="doInstall" class="btn primary">Add to home screen</button>${pinBlock()}`
+       <button id="doInstall" class="btn primary">Add to home screen</button>`
     : `<p class="muted">Open this page on your phone to add it to the home screen. On an iPhone use Safari and
-       tap Share, then Add to Home Screen; on Android, Chrome's menu offers Install.</p>${pinBlock()}`;
+       tap Share, then Add to Home Screen; on Android, Chrome's menu offers Install.</p>`;
   if (installPrompt) {
     $('#doInstall').onclick = async () => {
       installPrompt.prompt();
@@ -1550,7 +1550,6 @@ function renderInstall() {
       renderInstall();
     };
   }
-  wirePin();
 }
 
 async function shareForInstall() {
@@ -1559,50 +1558,6 @@ async function shareForInstall() {
   } catch (e) {
     if (e.name !== 'AbortError') toast('Couldn’t open the share sheet. Use Safari’s Share button instead.');
   }
-}
-
-// Each URL added to the home screen becomes its own icon, so a saved place can be a one-tap route.
-function pinBlock() {
-  const saved = savedPlaces();
-  return `<h3 class="set-head">Pin a place</h3>
-    ${saved.length
-      ? `<p class="muted">Put one of your saved places straight on the home screen: its icon opens the app and
-          starts the route. Pick one, then add it the same way.</p>
-         <div id="pinRow" class="chips">${saved.map((p, i) =>
-          `<button class="chip" data-pin="${i}">${KIND_ICON[p.kind] || '📍'} ${esc(p.title)}</button>`).join('')}</div>`
-      : `<p class="muted">Save a place first (☆ Save place on any destination) and you can pin it here.</p>`}`;
-}
-
-function wirePin() {
-  $('#installBox').querySelectorAll('[data-pin]').forEach((el) => (el.onclick = async () => {
-    const p = savedPlaces()[el.dataset.pin];
-    const url = new URL(placeUrl(p), location.href).href;
-    if (navigator.share) {
-      try { await navigator.share({ title: p.title, url }); return; } catch (e) { if (e.name === 'AbortError') return; }
-    }
-    try { await navigator.clipboard.writeText(url); toast(`Link to ${p.title} copied — open it, then Add to Home Screen`); }
-    catch { toast('Open this place, then use Share → Add to Home Screen'); }
-  }));
-}
-
-/** The deep link that reopens a saved place, so its home-screen icon lands straight on it. */
-function placeUrl(p) {
-  const q = `campus=${encodeURIComponent(CAMPUS)}`;
-  if (p.kind === 'room') { // roomKey is "<building id>|<room id>", or just the room id in the main building
-    const [bld, id] = p.key.includes('|') ? p.key.split('|') : [null, p.key];
-    return `?${q}&to=${encodeURIComponent(id)}${bld ? `&in=${encodeURIComponent(bld)}` : ''}`;
-  }
-  if (p.kind === 'building') return `?${q}&b=${encodeURIComponent(p.key)}`;
-  if (p.kind === 'entrance') return `?${q}&b=${encodeURIComponent(p.key.slice(0, p.key.indexOf(':')))}`;
-  if (p.kind === 'stop') {
-    const i = (campus.transit?.stops || []).findIndex((s) => s.name === p.key);
-    return i >= 0 ? `?${q}&stop=${i}` : `?${q}`;
-  }
-  if (p.kind === 'food') {
-    const i = (campus.food || []).findIndex((f) => `${f.name}@${f.lat}` === p.key);
-    return i >= 0 ? `?${q}&food=${i}` : `?${q}`;
-  }
-  return `?${q}`;
 }
 
 function openSettings() {
