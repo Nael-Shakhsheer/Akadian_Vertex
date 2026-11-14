@@ -67,7 +67,7 @@ node tests/test_buses.mjs
 node tests/test_router.mjs
 ```
 
-**Demo on a phone (no Python needed):** the public app runs entirely in the browser, so a static copy works the same as the engine's public server: search, indoor and outdoor routes, 3D views, GPS, parking and saved places. The repo keeps one in `docs/`, served by GitHub Pages at **https://nael-shakhsheer.github.io/Akadian_Maps/**. Open it on the phone, then use the browser's **Add to Home Screen** to launch it like an app. GPS works because Pages uses https. To turn Pages on once: on GitHub, **Settings → Pages → Build and deployment → Deploy from a branch → `main`, `/docs` → Save**. After you change or publish maps, refresh the copy and push:
+**Demo on a phone (no Python needed):** the public app runs entirely in the browser, so a static copy works the same as the engine's public server: search, indoor and outdoor routes, 3D views, GPS, parking and saved places. The repo keeps one in `docs/`, served by GitHub Pages at **https://nael-shakhsheer.github.io/Akadian_Vertex/**. Open it on the phone, then use the browser's **Add to Home Screen** to launch it like an app. GPS works because Pages uses https. To turn Pages on once: on GitHub, **Settings → Pages → Build and deployment → Deploy from a branch → `main`, `/docs` → Save**. After you change or publish maps, refresh the copy and push:
 
 ```bash
 python tools/export_static.py
