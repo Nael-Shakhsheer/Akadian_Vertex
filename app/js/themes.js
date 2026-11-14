@@ -20,7 +20,7 @@ export const MODES = {
   custom: { label: 'Custom', hint: 'Pick a base and a colour' },
 };
 export const KEY = 'akadian:appearance';
-export const DEFAULTS = { mode: 'standard', base: 'dark', accent: 'orange' };
+export const DEFAULTS = { mode: 'light', base: 'light', accent: 'orange' }; // light is what the app starts as
 
 // ---------- colour helpers ----------
 const clamp = (n) => Math.max(0, Math.min(255, Math.round(n)));
@@ -42,7 +42,7 @@ export function loadAppearance() {
       return { ...DEFAULTS, ...saved, ...(saved.mode === 'custom' ? {} : MODES[saved.mode]) };
     }
   } catch {}
-  return { ...DEFAULTS, ...MODES.standard };
+  return { ...DEFAULTS, ...MODES.light };
 }
 export function saveAppearance(next) {
   const merged = { ...loadAppearance(), ...next };
@@ -100,8 +100,10 @@ export function indoorPalette(a = loadAppearance()) {
     return {
       base: 'light', light: true, accentHex: r.hex,
       bg: 0xf4f6f9, grid: [0xd8dde5, 0xe8ecf1], slab: 0xdfe4ea, walk: 0xf8fafc, room: 0xe9edf2, shaft: 0xc7ced8,
-      line: 0x15181e, accent: int(r.hex), hover: int(mix(r.hex, '#000000', 0.25)),
-      bloom: [0, 0.4, 1], hemi: 0.95, sun: 0.45, edgeK: 1, roomK: 1, roomEdge: 0.9,
+      // outlines are the accent taken deeper rather than black: still dark enough to read on pale slabs, but
+      // the whole plan stays in the app's colour instead of looking like a photocopy
+      line: int(mix(r.hex, '#6b2800', 0.4)), accent: int(r.hex), hover: int(mix(r.hex, '#000000', 0.25)),
+      bloom: [0, 0.4, 1], hemi: 0.95, sun: 0.45, edgeK: 1, roomK: 1, roomEdge: 0.95,
     };
   }
   return {

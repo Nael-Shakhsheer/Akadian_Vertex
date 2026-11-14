@@ -64,7 +64,7 @@
     try {
       var A = JSON.parse(localStorage.getItem('akadian:appearance')) || {};
       var M = { standard: ['dark', 'orange'], light: ['light', 'orange'] }[A.mode];
-      var base = M ? M[0] : (A.base === 'light' ? 'light' : 'dark');
+      var base = M ? M[0] : (A.base === 'dark' ? 'dark' : 'light'); // light unless something says otherwise
       var accent = M ? M[1] : (A.accent || 'orange');
       var HEX = { orange: ['#f0a04a', '#d2600a'], red: ['#ff6b6b', '#c62828'], green: ['#4ade80', '#15803d'],
                   blue: ['#60a5fa', '#1d4ed8'], gold: ['#fbbf24', '#a16207'], purple: ['#c084fc', '#7c3aed'] };

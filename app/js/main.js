@@ -3,7 +3,7 @@
 import { loadBuilding, latLngToPlan, planToLatLng, metersBetween, roomTitle, floorName } from './building.js';
 import { simplify } from './router.js';
 import { IndoorRouting } from './routing.js';
-import { OutdoorMap, nearestOnRing, CATEGORIES } from './outdoor.js';
+import { OutdoorMap, nearestOnRing, parkingTag, CATEGORIES } from './outdoor.js';
 import { WalkGraph } from './walk.js';
 import { walkingSteps } from './directions.js';
 import { ParkingSpot, ParkDetector, describe, ago, carHeading, CAR_SVG } from './parking.js';
@@ -509,6 +509,11 @@ function openRecent(r) {
   if (r.kind === 'building') { const x = campus.buildings.find((y) => y.id === r.key); if (x) return chooseBuilding(x); }
   if (r.kind === 'stop') { const x = campus.transit?.stops.find((y) => y.name === r.key); if (x) return chooseStop(x); }
   if (r.kind === 'food') { const x = campus.food?.find((y) => `${y.name}@${y.lat}` === r.key); if (x) return chooseFood(x); }
+  if (r.kind === 'parking') {
+    const lot = (campus.areas || []).find((a) => a.cat === 'parking' && `${a.name}@${(state.user ? nearestOnRing(a.ring, state.user) : ringCentre(a.ring))[0].toFixed(5)}` === r.key)
+      || (campus.areas || []).find((a) => a.cat === 'parking' && a.name === r.key.split('@')[0]);
+    if (lot) return chooseParking(lot);
+  }
   if (r.kind === 'entrance') { // key is "<building id>:<entrance name>"
     const [bld, name] = [r.key.slice(0, r.key.indexOf(':')), r.key.slice(r.key.indexOf(':') + 1)];
     const ib = indoors.find((x) => String(x.bld.id) === bld);
@@ -532,7 +537,7 @@ const roomUrl = (room, ib) => `?to=${encodeURIComponent(room.id)}${ib === main ?
 // ---------- saved places: up to 5 favourites for one-tap directions (this device only) ----------
 const SAVED_KEY = `akadian:saved:${CAMPUS}`;
 const SAVED_MAX = 5;
-const KIND_ICON = { room: '📍', building: '🏛', stop: '🚌', food: '🍴', entrance: '🚪' };
+const KIND_ICON = { room: '📍', building: '🏛', stop: '🚌', food: '🍴', entrance: '🚪', parking: '🅿' };
 function savedPlaces() { try { return JSON.parse(localStorage.getItem(SAVED_KEY)) || []; } catch { return []; } }
 function storeSaved(list) { try { localStorage.setItem(SAVED_KEY, JSON.stringify(list)); return true; } catch { return false; } }
 const sameP = (a, c) => a && c && a.kind === c.kind && a.key === c.key;
@@ -705,6 +710,18 @@ function chooseEntrance(e, ib) {
     info: `Way in to ${ib.name}`, url: `?b=${ib.bld.id}`, arrive: `the ${e.name.split(' (')[0]}` });
 }
 
+// A parking lot picked off the map: walk to its nearest edge, and offer to remember the car once you're there.
+function chooseParking(lot) {
+  const tag = parkingTag(lot.name);
+  const title = lot.name && lot.name !== 'Parking' ? lot.name : `Parking ${tag}`;
+  const at = state.user ? nearestOnRing(lot.ring, state.user) : ringCentre(lot.ring);
+  remember('parking', `${lot.name}@${at[0].toFixed(5)}`, title, 'Parking');
+  choosePoint({
+    title, sub: `Parking · ${tag}`, lat: at[0], lon: at[1], info: 'Tap “Save my spot” once you’ve parked.',
+    url: `?campus=${encodeURIComponent(CAMPUS)}&lot=${encodeURIComponent(lot.name || tag)}`, arrive: title,
+  });
+}
+
 function chooseFood(f) {
   remember('food', `${f.name}@${f.lat}`, f.name, [f.kind, f.building].filter(Boolean).join(' · '));
   const url = `?food=${campus.food.indexOf(f)}`;
@@ -772,9 +789,18 @@ async function computeIndoor() {
 const outdoor = new OutdoorMap($('#map'), campus, {
   campusId: CAMPUS,
   data: DATA,
+  // one tap picks the building and routes to it; two taps go straight inside
   onBuildingClick: (bld) => {
     if (state.mode === 'park') return false; // saving a spot: taps set your position instead
+    chooseBuilding(bld);
+  },
+  onBuildingOpen: (bld) => {
+    if (state.mode === 'park') return false;
     openBuilding(bld);
+  },
+  onAreaClick: (lot) => {
+    if (state.mode === 'park') return false;
+    chooseParking(lot);
   },
   onMapClick: (ll, bld) => {
     if (!state.demo) return;
@@ -1718,7 +1744,7 @@ function renderSteps(c) {
 }
 
 // ---------- start ----------
-// Deep links (QR codes on signs, shared links): ?to=344 (&in=gmu-research for rooms outside the main building), ?b=<osm id>, ?view=<osm id>, ?stop=, ?food=, ?car=1, ?park=1, ?explore=1
+// Deep links (QR codes on signs, shared links): ?lot=<name>, ?to=344 (&in=gmu-research for rooms outside the main building), ?b=<osm id>, ?view=<osm id>, ?stop=, ?food=, ?car=1, ?park=1, ?explore=1
 if (params.get('to')) {
   const r = findRoom(params.get('to'), params.get('in'));
   if (r) chooseRoom(r);
@@ -1734,6 +1760,10 @@ if (params.get('to')) {
 } else if (params.get('view')) {
   const x = campus.buildings.find((y) => String(y.id) === params.get('view'));
   if (x) outdoor.ready.then(() => openBuilding(x));
+} else if (params.get('lot')) {
+  const want = params.get('lot');
+  const lot = (campus.areas || []).find((a) => a.cat === 'parking' && (a.name === want || parkingTag(a.name) === want));
+  if (lot) chooseParking(lot);
 } else if (params.get('car')) {
   walkToCar();
 } else if (params.get('park')) {

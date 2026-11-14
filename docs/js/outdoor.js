@@ -36,12 +36,47 @@ export const CATEGORIES = [
   { id: 'food', label: 'Food & coffee', color: '#ff7ab6' },
 ];
 const TRANSIT = '#2dd4bf';
+const PARK_COLOR = CATEGORIES.find((c) => c.id === 'parking').color;
+// A marker's shadow: soft, small, and always on the ground.
+const SHADOW = { 'circle-color': '#000000', 'circle-blur': 0.9, 'circle-opacity': 0.22 };
+// Every marker that floats, with the paint property that moves it and a phase so the families bob out of step.
+const FLOATERS = [
+  ['park-shadow', 'circle-translate', 4.2, true], ['park-badge', 'circle-translate', 4.2], ['park-letter', 'text-translate', 4.2],
+  ['area-names', 'text-translate', 4.2],
+  ['stop-shadow', 'circle-translate', 0, true], ['stops', 'icon-translate', 0], ['stop-names', 'text-translate', 0],
+  ['food-group-shadow', 'circle-translate', 2.1, true], ['food-group', 'icon-translate', 2.1], ['food-group-count', 'text-translate', 2.1],
+  ['food-shadow', 'circle-translate', 2.1, true], ['food', 'icon-translate', 2.1], ['food-names', 'text-translate', 2.1],
+];
 const FOOD = '#ff7ab6';
+// Widths and the side-by-side spacing of bus routes, all growing with the roads they follow so the lines stay
+// on the road at every zoom. `slot` on each line is its place in the bundle: ..., -1, 0, 1, ...
+// A zoom expression has to be the whole value, so the per-line multiply goes inside each stop rather than
+// around the interpolate — MapLibre rejects the other way round and drops the entire style.
+const TRANSIT_W = ['interpolate', ['exponential', 1.6], ['zoom'], 13, 0.8, 16, 1.8, 18, 3.2];
+const TRANSIT_W_FOCUS = ['interpolate', ['exponential', 1.6], ['zoom'], 13, 1.8, 16, 3.8, 18, 6.6];
+const TRANSIT_GLOW_W = ['interpolate', ['exponential', 1.6], ['zoom'], 13, 1.6, 16, 4, 18, 9];
+const TRANSIT_BLUR = ['interpolate', ['linear'], ['zoom'], 13, 1.5, 18, 6];
+const slotAt = (px) => ['*', ['get', 'slot'], px];
+const SLOT_OFFSET = ['interpolate', ['exponential', 1.6], ['zoom'],
+  13, slotAt(1.1), 16, slotAt(2.2), 18, slotAt(3.8)];
+
+/**
+ * The letter a parking lot is known by, for its badge: "Lot A" -> A, "Parking Lot R" -> R, "PV Lot" -> PV,
+ * "Merten Hall Lot" -> MH, "Roberts Lot" -> RO. Anything longer is cut to two letters, which is all that fits.
+ */
+export function parkingTag(name) {
+  const words = String(name || '').split(/[^A-Za-z0-9]+/)
+    .filter((w) => w && !/^(lot|parking|for|and|the|of|deck|garage)$/i.test(w));
+  if (!words.length) return 'P';
+  if (words.length === 1) return words[0].slice(0, 2).toUpperCase();
+  return (words[0][0] + words[1][0]).toUpperCase();
+}
+
 const POINT_LAYERS = { transit: ['transit-glow', 'transit-line', 'stops', 'stop-names'], food: ['food', 'food-names', 'food-group', 'food-group-count'] };
 const FOOD_SPLIT_ZOOM = 18.3; // a building with several spots shows one icon until you zoom in this far
 
 export class OutdoorMap {
-  constructor(container, campus, { campusId, data, onBuildingClick, onMapClick, onStopClick, onFoodClick, stopNote } = {}) {
+  constructor(container, campus, { campusId, data, onBuildingClick, onBuildingOpen, onAreaClick, onMapClick, onStopClick, onFoodClick, stopNote } = {}) {
     const base = new URL(data, location.href).href.replace(/\/$/, ''); // MapLibre wants absolute URLs
     this.campus = campus;
     this.enabled = new Set(CATEGORIES.map((c) => c.id));
@@ -56,7 +91,7 @@ export class OutdoorMap {
     const areas = {
       type: 'FeatureCollection',
       features: (campus.areas || []).map((a, i) => ({
-        type: 'Feature', id: i, properties: { name: a.name, cat: a.cat },
+        type: 'Feature', id: i, properties: { i, name: a.name, cat: a.cat },
         geometry: { type: 'Polygon', coordinates: [a.ring, ...a.holes] },
       })),
     };
@@ -105,11 +140,15 @@ export class OutdoorMap {
           { id: 'area-glow', type: 'line', source: 'areas', paint: { 'line-color': this.catColor(NEUTRAL), 'line-width': 5, 'line-blur': 4, 'line-opacity': this.areaLineOpacity(0.35) } },
           { id: 'area-edge', type: 'line', source: 'areas', paint: { 'line-color': this.catColor(NEUTRAL), 'line-width': 1.2, 'line-opacity': this.areaLineOpacity(0.9) } },
           // bus and shuttle routes, in each line's own color
+          // Bus routes run side by side along the same roads. line-offset is in screen pixels, so a fixed
+          // offset slides the lines off the road as you zoom: SLOT_OFFSET grows with the roads instead, and the
+          // glow carries the same offset so it sits under its own line rather than on the centreline.
           { id: 'transit-glow', type: 'line', source: 'transitLines', layout: { 'line-cap': 'round', 'line-join': 'round' },
-            paint: { 'line-color': ['get', 'colour'], 'line-width': ['interpolate', ['linear'], ['zoom'], 13, 4, 18, 12], 'line-blur': 6, 'line-opacity': 0.25 } },
+            paint: { 'line-color': ['get', 'colour'], 'line-width': TRANSIT_GLOW_W, 'line-blur': TRANSIT_BLUR,
+              'line-opacity': 0.25, 'line-offset': SLOT_OFFSET } },
           { id: 'transit-line', type: 'line', source: 'transitLines', layout: { 'line-cap': 'round', 'line-join': 'round' },
-            paint: { 'line-color': ['get', 'colour'], 'line-width': ['interpolate', ['linear'], ['zoom'], 13, 1, 18, 3], 'line-opacity': 0.75,
-              'line-offset': ['get', 'offset'] } },
+            paint: { 'line-color': ['get', 'colour'], 'line-width': TRANSIT_W, 'line-opacity': 0.75,
+              'line-offset': SLOT_OFFSET } },
           // glowing footprints under the 3D shells
           { id: 'bld-glow', type: 'line', source: 'buildings', paint: { 'line-color': this.catColor('#6b6f78'), 'line-width': 6, 'line-blur': 5, 'line-opacity': 0.35 } },
           { id: 'bld-edge', type: 'line', source: 'buildings', paint: { 'line-color': this.catColor('#6b6f78'), 'line-width': 1.2, 'line-opacity': 0.9 } },
@@ -144,6 +183,17 @@ export class OutdoorMap {
             'circle-radius': ['case', ['==', ['get', 'kind'], 'best'], 6.5, 4.5],
             'circle-color': ['case', ['==', ['get', 'kind'], 'best'], ACCENT, '#262931'],
             'circle-stroke-color': ACCENT, 'circle-stroke-width': 2 } },
+          // Markers hover above the map and bob (see floatMarkers). These are the shadows they cast, drawn at
+          // the real position so the thing above them still reads as standing at that spot.
+          { id: 'park-shadow', type: 'circle', source: 'labels', minzoom: 14.5, filter: ['==', ['get', 'type'], 'parking'],
+            paint: { ...SHADOW, 'circle-radius': ['interpolate', ['linear'], ['zoom'], 14.5, 3, 17, 5, 19, 6.5] } },
+          { id: 'stop-shadow', type: 'circle', source: 'stops',
+            paint: { ...SHADOW, 'circle-radius': ['interpolate', ['linear'], ['zoom'], 13, 2, 16, 3.5, 19, 5] } },
+          { id: 'food-group-shadow', type: 'circle', source: 'foodGroups', maxzoom: FOOD_SPLIT_ZOOM,
+            paint: { ...SHADOW, 'circle-radius': ['interpolate', ['linear'], ['zoom'], 14, 2.5, 17, 4] } },
+          { id: 'food-shadow', type: 'circle', source: 'food',
+            filter: ['any', ['!', ['get', 'grouped']], ['>=', ['zoom'], FOOD_SPLIT_ZOOM]],
+            paint: { ...SHADOW, 'circle-radius': ['interpolate', ['linear'], ['zoom'], 14, 2, 16, 3, 19, 4.5] } },
           // bus / shuttle stops (icons drawn in code, see addStopIcons)
           { id: 'stops', type: 'symbol', source: 'stops',
             layout: { 'icon-image': ['case', ['get', 'shuttle'], 'stop-shuttle', 'stop-bus'],
@@ -179,8 +229,24 @@ export class OutdoorMap {
               'text-max-width': 8, 'text-padding': 4, 'symbol-sort-key': ['-', 0, ['get', 'size']], 'text-variable-anchor': ['center', 'top', 'bottom'] },
             paint: { 'text-color': MAP.bldgLabel, 'text-halo-color': MAP.halo, 'text-halo-width': 1.4,
               'text-opacity': ['interpolate', ['linear'], ['zoom'], 16, ['case', ['>', ['get', 'size'], 2500], 1, 0], 17, 1] } },
+          // Parking lots carry a badge with the letter they are signed by, so you can pick one out without
+          // zooming in far enough for the full name.
+          { id: 'park-badge', type: 'circle', source: 'labels', minzoom: 14.5, filter: ['==', ['get', 'type'], 'parking'],
+            paint: {
+              'circle-radius': ['interpolate', ['linear'], ['zoom'], 14.5, 7, 17, 12, 19, 15],
+              'circle-color': PARK_COLOR, 'circle-stroke-width': 1.6, 'circle-stroke-color': MAP.halo,
+              'circle-opacity': ['interpolate', ['linear'], ['zoom'], 14.5, 0, 15.2, 0.92],
+              'circle-stroke-opacity': ['interpolate', ['linear'], ['zoom'], 14.5, 0, 15.2, 1],
+            } },
+          { id: 'park-letter', type: 'symbol', source: 'labels', minzoom: 14.5, filter: ['==', ['get', 'type'], 'parking'],
+            layout: {
+              'text-field': ['get', 'tag'], 'text-font': ['Noto Sans Bold'], 'text-allow-overlap': true,
+              'text-size': ['interpolate', ['linear'], ['zoom'], 14.5, 9, 17, 13, 19, 16],
+            },
+            paint: { 'text-color': '#ffffff', 'text-opacity': ['interpolate', ['linear'], ['zoom'], 14.5, 0, 15.2, 1] } },
           { id: 'area-names', type: 'symbol', source: 'labels', minzoom: 17, filter: ['==', ['get', 'type'], 'area'],
-            layout: { 'text-field': ['get', 'name'], 'text-font': ['Noto Sans Regular'], 'text-size': 11, 'text-padding': 4 },
+            layout: { 'text-field': ['get', 'name'], 'text-font': ['Noto Sans Regular'], 'text-size': 11, 'text-padding': 4,
+              'text-offset': [0, 1.5], 'text-anchor': 'top' },
             paint: { 'text-color': this.catColor(MAP.label), 'text-halo-color': MAP.halo, 'text-halo-width': 1.3,
               'text-opacity': ['interpolate', ['linear'], ['zoom'], 17, 0, 17.6, 1] } },
         ],
@@ -218,6 +284,10 @@ export class OutdoorMap {
       this.popup.setLngLat(e.lngLat).setHTML(`<b>${f.properties.name}</b><small>${label}</small>`).addTo(this.map);
     });
     this.map.on('mouseleave', 'area-fill', () => { if (this.hoverId === null) this.popup.remove(); });
+    for (const layer of ['park-badge', 'park-letter']) {
+      this.map.on('mouseenter', layer, () => { this.map.getCanvas().style.cursor = 'pointer'; });
+      this.map.on('mouseleave', layer, () => { this.map.getCanvas().style.cursor = ''; });
+    }
     this.map.on('styleimagemissing', (e) => { addStopIcons(this.map, e.id); addFoodIcons(this.map, e.id); });
 
     // food: hover for a quick look, click for a card with "Go here"
@@ -282,15 +352,38 @@ export class OutdoorMap {
       this.stopClicked = true;
     });
     this.buildFilterBar(container);
+    // One tap picks a building (directions to it); two taps open its inside. The single-tap action waits
+    // out the double-tap window, so one gesture never fires both. Taps on anything else act at once.
+    this.tapTimer = null;
     this.map.on('click', (e) => {
       if (this.stopClicked) { this.stopClicked = false; return; } // a stop handled this tap
       const f = this.map.queryRenderedFeatures(e.point, { layers: ['bld-3d', 'bld-ghost'] })[0];
-      // a building handler can return false to let the tap through (demo mode: tap anywhere to set your start)
-      if (f && onBuildingClick && onBuildingClick(campus.buildings[f.id]) !== false) return;
-      // in 3D, a tap on a roof reports the ground behind it, so pass the building along too
-      onMapClick?.([e.lngLat.lat, e.lngLat.lng], f ? campus.buildings[f.id] : null);
+      const bld = f ? campus.buildings[f.id] : null;
+      const fallthrough = () => onMapClick?.([e.lngLat.lat, e.lngLat.lng], bld);
+      if (bld && onBuildingClick) {
+        clearTimeout(this.tapTimer);
+        this.tapTimer = setTimeout(() => {
+          this.tapTimer = null;
+          // the handler returns false to let the tap through (demo mode: tap anywhere to set your start)
+          if (onBuildingClick(bld) === false) fallthrough();
+        }, 260);
+        return;
+      }
+      const lot = onAreaClick && this.map.queryRenderedFeatures(e.point, { layers: ['park-badge', 'park-letter', 'area-fill'] })
+        .find((x) => x.properties.cat === 'parking' && x.properties.i !== undefined);
+      if (lot && onAreaClick(campus.areas[lot.properties.i]) !== false) return;
+      fallthrough();
+    });
+    this.map.on('dblclick', (e) => {
+      const f = this.map.queryRenderedFeatures(e.point, { layers: ['bld-3d', 'bld-ghost'] })[0];
+      if (!f || !onBuildingOpen) return;
+      e.preventDefault(); // the second tap would otherwise zoom the map
+      clearTimeout(this.tapTimer);
+      this.tapTimer = null;
+      onBuildingOpen(campus.buildings[f.id]);
     });
     this.ready = new Promise((r) => this.map.on('load', r));
+    this.ready.then(() => this.floatMarkers());
   }
 
   // ----- color filters -----
@@ -422,9 +515,42 @@ export class OutdoorMap {
     const on = (a, b) => (ref ? ['case', ['==', ['get', 'ref'], ref], a, b] : a);
     this.map.setPaintProperty('transit-line', 'line-opacity', on(1, 0.12));
     this.map.setPaintProperty('transit-glow', 'line-opacity', on(0.55, 0.05));
-    this.map.setPaintProperty('transit-line', 'line-width', ref
-      ? ['case', ['==', ['get', 'ref'], ref], ['interpolate', ['linear'], ['zoom'], 13, 2.5, 18, 6], ['interpolate', ['linear'], ['zoom'], 13, 1, 18, 3]]
-      : ['interpolate', ['linear'], ['zoom'], 13, 1, 18, 3]);
+    this.map.setPaintProperty('transit-line', 'line-width', ref ? TRANSIT_W_FOCUS : TRANSIT_W);
+  }
+
+  /**
+   * Lift the markers off the map and let them bob, with their shadows tightening underneath, so a stop or a
+   * lot reads as an object standing at that spot rather than a sticker painted on it. The three families bob
+   * out of step with each other. Reduced motion gets the lift and the shadow but no movement.
+   */
+  floatMarkers() {
+    const anchor = (id, prop) => this.map.getLayer(id) && this.map.setPaintProperty(id, `${prop}-anchor`, 'viewport');
+    for (const [id, prop] of FLOATERS) anchor(id, prop);
+
+    const still = matchMedia('(prefers-reduced-motion: reduce)');
+    const LIFT = 9, BOB = 3.4;
+    const place = (now) => {
+      for (const [id, prop, phase, isShadow] of FLOATERS) {
+        if (!this.map.getLayer(id)) continue;
+        const rise = LIFT + (still.matches ? 0 : BOB * Math.sin(now / 620 + phase));
+        if (isShadow) {
+          // the shadow stays on the ground and only shrinks away as the marker climbs
+          this.map.setPaintProperty(id, 'circle-opacity', 0.26 - 0.1 * ((rise - LIFT + BOB) / (2 * BOB || 1)));
+        } else {
+          this.map.setPaintProperty(id, prop, [0, -rise]);
+        }
+      }
+    };
+    place(0);
+    if (still.matches) return;
+    let last = 0;
+    const tick = (now) => {
+      this.floatRaf = requestAnimationFrame(tick);
+      if (document.hidden || now - last < 33) return; // ~30fps: it is a slow bob, not an animation reel
+      last = now;
+      place(now);
+    };
+    this.floatRaf = requestAnimationFrame(tick);
   }
 
   /** Repaint the accent-coloured layers after the accent changes (no reload needed). */
@@ -538,7 +664,7 @@ function transitLines(campus) {
   return {
     type: 'FeatureCollection',
     features: lines.map(([ref, l], i) => ({
-      type: 'Feature', properties: { ref, name: l.name, colour: l.colour, offset: (i - (lines.length - 1) / 2) * 1.6 },
+      type: 'Feature', properties: { ref, name: l.name, colour: l.colour, slot: i - (lines.length - 1) / 2 },
       geometry: { type: 'MultiLineString', coordinates: l.paths },
     })),
   };
@@ -698,10 +824,15 @@ function labelPoints(campus) {
     seen.add(b.name);
     features.push({ type: 'Feature', properties: { type: 'building', name: b.name, size: area(b.ring), cat: b.cat }, geometry: { type: 'Point', coordinates: mid(b.ring) } });
   }
-  for (const a of campus.areas || []) {
-    if (a.cat !== 'parking' || !a.name || a.name === 'Parking') continue;
-    features.push({ type: 'Feature', properties: { type: 'area', name: a.name, cat: a.cat }, geometry: { type: 'Point', coordinates: mid(a.ring) } });
-  }
+  // every lot gets a lettered badge; the ones with a real name also get that name once you are zoomed in
+  (campus.areas || []).forEach((a, i) => {
+    if (a.cat !== 'parking') return;
+    const at = { type: 'Point', coordinates: mid(a.ring) };
+    features.push({ type: 'Feature', properties: { type: 'parking', i, name: a.name, tag: parkingTag(a.name), cat: a.cat }, geometry: at });
+    if (a.name && a.name !== 'Parking') {
+      features.push({ type: 'Feature', properties: { type: 'area', i, name: a.name, cat: a.cat }, geometry: at });
+    }
+  });
   return { type: 'FeatureCollection', features };
 }
 function centroid(ring) {
