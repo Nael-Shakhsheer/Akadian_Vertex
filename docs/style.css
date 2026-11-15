@@ -710,3 +710,10 @@ body.map-mode .topbar { display: none; }
   width: 17px; height: 17px; vertical-align: -3px; fill: none; stroke: currentColor; stroke-width: 1.8;
   stroke-linecap: round; stroke-linejoin: round; color: var(--accent-hi);
 }
+
+/* settings: the anonymous-usage switch */
+.set-toggle { display: flex; gap: 10px; align-items: flex-start; cursor: pointer; padding: 2px 0 6px; }
+.set-toggle input { margin: 2px 0 0; width: 17px; height: 17px; accent-color: var(--accent); flex: none; }
+.set-toggle .txt { font-size: 14px; color: var(--text); }
+.set-toggle .txt small { display: block; margin-top: 3px; color: var(--muted); font-size: 12px; line-height: 1.45; }
+.set-toggle.off { opacity: .55; cursor: default; }

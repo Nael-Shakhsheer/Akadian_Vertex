@@ -13,6 +13,7 @@ from starlette.middleware.gzip import GZipMiddleware
 
 from .vault import Vault
 from .store import Store, check_slug, campus_index
+from .usage import Usage, mount_public
 from .pipeline import ingest, build as builder, campus as campus_pipe, basemap, schedule
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -419,6 +420,20 @@ def admin_app(home: Path) -> FastAPI:
         store.publish("campus", cid, out)
         return {"ok": True, "stats": c["stats"], "indoor": indoor, "url": f"/?campus={cid}"}
 
+    # ----- usage -----
+    # Read-only here. The public server does the counting; this reads the same files, so a figure can be
+    # up to one flush interval behind what has just happened.
+    usage = Usage(home)
+
+    @app.get("/api/usage", dependencies=[Depends(require_admin)])
+    def usage_report(start: str | None = None, end: str | None = None):
+        return usage.report(start, end)
+
+    @app.get("/api/usage.csv", dependencies=[Depends(require_admin)])
+    def usage_csv(start: str | None = None, end: str | None = None):
+        return Response(usage.csv(start, end), media_type="text/csv",
+                        headers={"Content-Disposition": 'attachment; filename="akadian-usage.csv"'})
+
     # ----- admin UI -----
     @app.get("/")
     def admin_index():
@@ -489,10 +504,15 @@ def public_app(home: Path) -> FastAPI:
             raise HTTPException(404)
         return pbf(published / "fonts" / stack / f"{rng}.pbf")
 
+    # anonymous tallies; engine/usage.py holds the endpoint and says what is and is not collected
+    mount_public(app, home)
+
     @app.get("/", response_class=HTMLResponse)
     def index():
         html = (APP_DIR / "index.html").read_text(encoding="utf-8")
-        return html.replace("<head>", "<head>\n  <script>window.AKADIAN_DATA = '/api/public';</script>", 1)
+        boot = ("<head>\n  <script>window.AKADIAN_DATA = '/api/public';"
+                "window.AKADIAN_USAGE = '/api/public/usage';</script>")
+        return html.replace("<head>", boot, 1)
 
     app.mount("/", StaticFiles(directory=APP_DIR), name="app")
     return app

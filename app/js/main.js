@@ -10,6 +10,7 @@ import { ParkingSpot, ParkDetector, describe, ago, carHeading, CAR_SVG } from '.
 import { fmtDist, fmtHeight, walkMins } from './units.js';
 import { Timetable, nowIn, fmtClock, fmtWait, place } from './buses.js';
 import { ACCENTS, MODES, loadAppearance, saveAppearance, applyAppearance, resolved } from './themes.js';
+import { startUsage, count, countBuilding, usageOn, setUsage } from './usage.js';
 
 const $ = (s) => document.querySelector(s);
 applyAppearance(); // the inline boot script already painted the base; this settles the rest
@@ -102,6 +103,7 @@ const ibOf = new Map(indoors.flatMap((ib) => ib.b.rooms.map((r) => [r, ib]))); /
 const routingFor = (ib) => (ib.routing ||= new IndoorRouting(`${DATA}/${ib.bld.indoor}`, ib.b));
 const roomSub = (room, ib) => `${room.kind === 'room' ? `Room ${room.id} · ` : ''}${floorName(ib.b, room.floor)} · ${ib.name}`;
 const CAMPUS_SHORT = campus.name.split(' – ')[0];
+startUsage(CAMPUS); // anonymous tallies, and only when the engine is serving: see js/usage.js
 $('#campusName').textContent = CAMPUS_SHORT;
 $('#homeCampus').textContent = campus.card?.short || CAMPUS_SHORT;
 // the round campus badge at the end of the search bar (tap it to change campus), and the logo at its start
@@ -185,8 +187,10 @@ document.addEventListener('keydown', (e) => {
 });
 
 // ---------- search bar + search list ----------
+let searchCounted = false; // one tally per visit to the search panel, not per keystroke
 function setSearching(on) {
   searching = on;
+  if (!on) searchCounted = false;
   $('#search').classList.toggle('hidden', !on);
   document.body.classList.toggle('searching', on);
   outdoor.setFloatPaused(on); // the map is covered: stop bobbing the markers and redrawing it
@@ -467,7 +471,11 @@ function renderResults(q) {
   }
 }
 
-$('#q').addEventListener('input', (e) => { $('#searchClear').classList.toggle('hidden', !e.target.value); renderResults(e.target.value); });
+$('#q').addEventListener('input', (e) => {
+  $('#searchClear').classList.toggle('hidden', !e.target.value);
+  if (e.target.value && !searchCounted) { searchCounted = true; count('search'); }
+  renderResults(e.target.value);
+});
 $('#q').addEventListener('keydown', (e) => {
   if (e.key === 'ArrowDown' || e.key === 'ArrowUp') { // walk the list without leaving the box
     if (!results.length) return;
@@ -615,6 +623,9 @@ function chooseRoom(room, { record = true } = {}) {
   state.dest = { type: 'room', room, title: roomTitle(room) };
   state.ib = ib;
   state.arrivedOnce = false;
+  state.counted = false;
+  count('place');
+  if (/\bstudy\b/i.test(roomTitle(room))) count('study_room');
   state.url = roomUrl(room, ib);
   setHeader(`${state.dest.title}<small>${roomSub(room, ib)}</small>`);
   if (record) remember('room', roomKey(room, ib), state.dest.title, roomSub(room, ib));
@@ -628,6 +639,8 @@ function chooseBuilding(bld) {
   state.dest = { type: 'building', bld, title: bld.name || 'Building' };
   state.ib = ibByBld.get(bld.id) || null;
   state.arrivedOnce = false;
+  state.counted = false;
+  count('place');
   state.perEntrance = [];
   state.url = `?b=${bld.id}`;
   setHeader(`${state.dest.title}<small>${bld.indoor ? 'Indoor 3D map available' : CAMPUS_SHORT}</small>`);
@@ -639,6 +652,8 @@ function chooseBuilding(bld) {
 function choosePoint({ title, sub, lat, lon, info, url, arrive, beforeArrive, share = true, stop = null }) {
   state.dest = { type: 'point', title, lat, lon, info, arrive, beforeArrive, share, stop };
   state.arrivedOnce = false;
+  state.counted = false;
+  count('place');
   state.perEntrance = [];
   state.url = url;
   setHeader(`${title}<small>${sub}</small>`);
@@ -646,6 +661,7 @@ function choosePoint({ title, sub, lat, lon, info, url, arrive, beforeArrive, sh
 }
 
 function chooseStop(stop) {
+  count('bus');
   remember('stop', stop.name, stop.name, lineNames(stop) || 'Bus stop');
   choosePoint({ title: stop.name, sub: lineNames(stop) || stop.networks.join(' · '), lat: stop.lat, lon: stop.lon,
     info: [stop.shuttle && 'Mason Shuttles', lineNames(stop), stop.shelter && 'sheltered'].filter(Boolean).join(' · '),
@@ -713,6 +729,7 @@ function chooseEntrance(e, ib) {
 
 // A parking lot picked off the map: walk to its nearest edge, and offer to remember the car once you're there.
 function chooseParking(lot) {
+  count('parking');
   const tag = parkingTag(lot.name);
   const title = lot.name && lot.name !== 'Parking' ? lot.name : `Parking ${tag}`;
   const at = state.user ? nearestOnRing(lot.ring, state.user) : ringCentre(lot.ring);
@@ -911,6 +928,7 @@ function pickTarget(refit = false) {
   const toDoor = state.user ? metersBetween(state.user, [e.lat, e.lon]) : Infinity;
   if (toDoor < ARRIVE_RADIUS && !state.arrivedOnce && (!state.demo || nav.on)) {
     state.arrivedOnce = true; // GPS says you're at the door: hand over to the indoor view
+    count('arrive');
     goIndoor();
   }
 }
@@ -946,6 +964,7 @@ function showWalk(out, key, refit, ring, arriveAt, beforeArrive = []) {
   if (!nav.on && (refit || fitOnce !== key)) { fitOnce = key; outdoor.fit(box); }
   const steps = out?.pieces ? walkingSteps(out, { landmarks: campus.buildings, arriveAt, beforeArrive }) : [];
   Object.assign(state, { steps, walkOut: out, arriveAt: arriveAt.replace(/<[^>]+>/g, '') });
+  if (out && !state.counted) { state.counted = true; count('route'); }
   renderWalkSteps(steps);
   $('#startNav').disabled = !out;
   $('#startNav').title = out ? 'Turn-by-turn directions that follow you' : state.demo ? 'Tap the map to choose your start' : 'Waiting for your location';
@@ -1066,6 +1085,7 @@ function startNav() {
     return toast(state.demo ? 'Tap the map to choose where you’re starting from.' : 'Waiting for your location…');
   }
   watchCompass();
+  count('navigate');
   nav.on = true;
   nav.spoken.clear();
   history.pushState({ screen: 'outdoor', depth: ++depth, nav: true }, '', link(state.url || location.search));
@@ -1420,6 +1440,7 @@ $('#parkSave').onclick = () => {
   if (!state.user) return;
   const [lat, lon] = state.user;
   const spot = parking.save({ lat, lon, level: parkLevel, note: $('#parkNote').value });
+  count('car');
   outdoor.focus(null);
   toast(`Saved: ${describe(spot)}`);
   goHome();
@@ -1592,8 +1613,17 @@ function openSettings() {
   renderAppearance();
   renderHistory();
   renderInstall();
+  renderUsage();
   $('#settings').classList.remove('hidden');
   $('#settingsBack').focus({ preventScroll: true });
+}
+// Tallies only, and switched off on the static build, where there is no server to count with.
+function renderUsage() {
+  const box = $('#usageToggle');
+  box.checked = usageOn();
+  box.disabled = !window.AKADIAN_USAGE;
+  box.closest('.set-toggle').classList.toggle('off', !window.AKADIAN_USAGE);
+  box.onchange = () => { setUsage(box.checked); toast(box.checked ? 'Counting on' : 'Counting off'); };
 }
 function closeSettings() { $('#settings').classList.add('hidden'); outdoor.setFloatPaused(searching); }
 $('#settingsBtn').onclick = openSettings;
@@ -1645,6 +1675,7 @@ $('#roomShare').onclick = async () => {
 };
 
 async function goIndoor() {
+  countBuilding(state.ib?.b?.building?.id);
   if (nav.on) { history.replaceState({ ...history.state, nav: false }, ''); stopNav({ overview: false }); } // walked in: on to the indoor route
   if (state.dest?.type === 'building') {
     await ensureIndoor();

@@ -92,7 +92,52 @@ function route() {
   if (page === 'building' && id) return guard(buildingPage)(id, tab || 'floors');
   if (page === 'campuses') return guard(campusesPage)();
   if (page === 'campus' && id) return guard(campusPage)(id);
+  if (page === 'usage') return guard(usagePage)();
   guard(buildingsPage)();
+}
+
+// ---------------- usage ----------------
+// Tallies, never people. engine/usage.js explains what is and is not collected; the same caution belongs
+// on screen, because these numbers are for showing other people and it must be clear what they claim.
+const RANGES = { 7: 'Last 7 days', 30: 'Last 30 days', 90: 'Last 90 days', 0: 'All time' };
+
+async function usagePage(days = 30) {
+  const since = Number(days) ? new Date(Date.now() - (Number(days) - 1) * 86400000).toISOString().slice(0, 10) : '';
+  const u = await api(`/api/usage${since ? `?start=${since}` : ''}`);
+  const total = (k) => u.totals[k] || 0;
+  const peak = Math.max(1, ...u.series.map((d) => d.open || 0));
+  const headline = ['open', 'search', 'route', 'indoor', 'study_room', 'navigate', 'standalone'];
+  main.innerHTML = `
+    <div class="page-head"><div class="grow"><p class="eyebrow">Anonymous counts</p><h1>Usage</h1></div>
+      <div class="row">
+        <select id="range">${Object.entries(RANGES).map(([d, label]) =>
+          `<option value="${d}"${String(d) === String(days) ? ' selected' : ''}>${label}</option>`).join('')}</select>
+        <a class="btn ghost" href="/api/usage.csv${since ? `?start=${since}` : ''}">Download CSV</a>
+      </div></div>
+    ${u.days ? '' : '<p class="muted">Nothing counted yet. The public server records these; the static build has no server to count with.</p>'}
+    <div class="grid">${headline.map((k) => `
+      <div class="tile"><div class="meta">${esc(u.labels[k] || k)}</div>
+        <b style="font-size:28px">${total(k).toLocaleString()}</b></div>`).join('')}</div>
+    ${u.days ? `
+    <div class="card" style="margin-top:18px">
+      <h2>App opens per day</h2>
+      <table><thead><tr><th>Day</th><th style="width:60%"></th><th>Opens</th><th>Searches</th><th>Routes</th></tr></thead><tbody>
+      ${u.series.slice().reverse().map((d) => `<tr><td>${esc(d.day)}</td>
+        <td><span style="display:block;height:9px;border-radius:5px;background:var(--accent);width:${Math.round(((d.open || 0) / peak) * 100)}%"></span></td>
+        <td>${d.open || 0}</td><td>${d.search || 0}</td><td>${d.route || 0}</td></tr>`).join('')}
+      </tbody></table>
+    </div>
+    <div class="card" style="margin-top:18px">
+      <h2>Buildings opened inside</h2>
+      <table><thead><tr><th>Building</th><th>Times</th></tr></thead><tbody>
+      ${Object.entries(u.buildings).map(([b, n]) => `<tr><td>${esc(b)}</td><td>${n}</td></tr>`).join('')
+        || '<tr><td colspan="2" class="muted">None yet.</td></tr>'}</tbody></table>
+    </div>` : ''}
+    <p class="muted small" style="margin-top:18px;max-width:70ch">These are tallies of events, not people. There is
+      no identifier anywhere in them, so an "open" is an open — never call it a user. Anything can post to the
+      collect endpoint, so treat them as a floor on real interest rather than an audited figure, and say so when
+      you quote them.</p>`;
+  $('#range').onchange = (e) => guard(usagePage)(e.target.value);
 }
 
 // ---------------- buildings list ----------------
