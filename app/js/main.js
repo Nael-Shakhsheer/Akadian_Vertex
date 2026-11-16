@@ -16,6 +16,7 @@ const $ = (s) => document.querySelector(s);
 applyAppearance(); // the inline boot script already painted the base; this settles the rest
 const ARRIVE_RADIUS = 20;     // m from the entrance counts as "arrived"
 const DATA = window.AKADIAN_DATA || '/api/public'; // published maps, served read-only by the engine
+const GEO_KEY = 'akadian:geo'; // "yes" to location is remembered, so one grant covers later launches
 const params = new URLSearchParams(location.search);
 // A plain launch (not a shared link or QR code) starts by asking which campus.
 if (!location.search.replace('?', '')) await pickCampus();
@@ -52,19 +53,60 @@ async function pickCampus() {
   let last = null;
   try { last = localStorage.getItem('akadian:last-campus'); } catch {}
   const initials = (s) => s.split(/\s+/).filter((w) => /^[A-Z]/.test(w)).map((w) => w[0]).join('').slice(0, 3);
-  $('#pickList').innerHTML = list.map((c) => `
-    <button class="campus-card" role="listitem" data-id="${c.id}" style="--c:${c.accent}">
-      <span class="seal" aria-hidden="true">${initials(c.short)}</span>
-      <span class="txt"><b>${c.short}</b><small>${c.place}</small>
-        <small class="indoor">${c.indoor.length ? `Indoor 3D: ${c.indoor.join(', ')}` : 'Campus map'}</small></span>
-      ${c.id === last ? '<span class="last">Last used</span>' : ''}
-      <span class="arrow" aria-hidden="true">→</span>
-    </button>`).join('');
-  $('#pickList').querySelectorAll('[data-id]').forEach((el) => (el.onclick = () => {
-    $('#pick').classList.add('hidden');
-    location.search = `?campus=${encodeURIComponent(el.dataset.id)}`;
-  }));
+
+  // `box` is the bounding box of the campus outline, [w, s, e, n]; `at` is its middle, [lat, lon]. Both come
+  // from campuses.json, which is small on purpose — the picker only has to rank a short list.
+  const standingOn = (c, ll) => c.box && ll[1] >= c.box[0] && ll[1] <= c.box[2] && ll[0] >= c.box[1] && ll[0] <= c.box[3];
+  const howFar = (c, ll) => (c.at ? metersBetween(ll, c.at) : Infinity);
+
+  function drawCampuses(here) {
+    const order = here ? [...list].sort((a, b) => howFar(a, here) - howFar(b, here)) : list;
+    const nearest = here ? order.find((c) => c.at) : null;
+    $('#pickList').innerHTML = order.map((c) => {
+      const mark = !here ? '' : standingOn(c, here) ? 'You are here' : c === nearest ? 'Closest campus' : '';
+      return `
+      <button class="campus-card" role="listitem" data-id="${c.id}" style="--c:${c.accent}">
+        <span class="seal" aria-hidden="true">${initials(c.short)}</span>
+        <span class="txt"><b>${c.short}</b><small>${c.place}</small>
+          <small class="indoor">${c.indoor.length ? `Indoor 3D: ${c.indoor.join(', ')}` : 'Campus map'}</small></span>
+        ${mark ? `<span class="near">${mark}</span>`
+          : c.id === last ? '<span class="last">Last used</span>' : ''}
+        <span class="arrow" aria-hidden="true">→</span>
+      </button>`;
+    }).join('');
+    $('#pickList').querySelectorAll('[data-id]').forEach((el) => (el.onclick = () => {
+      $('#pick').classList.add('hidden');
+      location.search = `?campus=${encodeURIComponent(el.dataset.id)}`;
+    }));
+  }
+
+  drawCampuses(null); // show the list at once; a position, if one is going free, only reorders it
+  freePosition().then((here) => here && drawCampuses(here));
   await new Promise(() => {}); // the page reloads on the chosen campus
+}
+
+/** A position, but only if it costs nothing: already granted, no prompt, no long wait, otherwise null.
+ *
+ * This deliberately never asks. The picker is the first screen, before anyone has done anything or been
+ * given a reason, which is exactly the moment a location request gets refused — and on iOS a refusal sticks
+ * until someone digs through Settings. Spending the one good ask here, to save a tap on a two-item list,
+ * would cost the app the thing it actually needs location for. So: if the answer is already yes, use it.
+ */
+async function freePosition() {
+  if (!('geolocation' in navigator)) return null;
+  let allowed = false;
+  try {
+    const p = await navigator.permissions.query({ name: 'geolocation' });
+    allowed = p.state === 'granted';
+  } catch {
+    // no permissions API (older iOS Safari): the only safe signal is that they have said yes before
+    try { allowed = localStorage.getItem(GEO_KEY) === 'on'; } catch { allowed = false; }
+  }
+  if (!allowed) return null;
+  return new Promise((done) => navigator.geolocation.getCurrentPosition(
+    (x) => done([x.coords.latitude, x.coords.longitude]),
+    () => done(null),
+    { enableHighAccuracy: false, maximumAge: 300000, timeout: 6000 }));
 }
 
 // ---------- loading ----------
@@ -855,8 +897,6 @@ const outdoor = new OutdoorMap($('#map'), campus, {
 //
 // So: only a refused permission stops the watch. A timeout or a momentary "position unavailable" is normal
 // indoors and usually clears by itself, so those leave it running and just say what is happening.
-const GEO_KEY = 'akadian:geo'; // "yes" is remembered, so one grant covers every later launch
-
 const geoWanted = () => { try { return localStorage.getItem(GEO_KEY) === 'on'; } catch { return false; } };
 const rememberGeo = (on) => { try { localStorage.setItem(GEO_KEY, on ? 'on' : 'off'); } catch {} };
 // [w, s, e, n] of the downloaded map area: where the app has tiles, and so where it can honestly draw you.

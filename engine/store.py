@@ -87,14 +87,27 @@ class Store:
 
 
 def campus_index(published: Path) -> list:
-    """The campus picker's list: every published campus with its card (name, place, accent colour)."""
+    """The campus picker's list: every published campus with its card (name, place, accent colour).
+
+    Each entry also carries where the campus is, so the picker can put the nearest one first and say which
+    one you are standing on. `box` is the bounding box of the real campus outline, in [w, s, e, n]; `at` is
+    its middle, as [lat, lon]. Two numbers' worth of geography rather than the whole outline, because this
+    file is fetched before anything else and the picker only needs to rank a short list.
+    """
     out = []
     for p in sorted((published / "campus").glob("*.json")):
         if not SLUG.match(p.stem):
             continue
         c = json.loads(p.read_text(encoding="utf-8"))
         card = c.get("card", {})
-        out.append({"id": p.stem, "name": c.get("name", p.stem), "short": card.get("short") or c.get("name", p.stem).split(" – ")[0],
-                    "place": card.get("place", ""), "accent": card.get("accent", "#f0a04a"),
-                    "indoor": sorted({b["name"] for b in c.get("buildings", []) if b.get("indoor") and b.get("name")})})
+        entry = {"id": p.stem, "name": c.get("name", p.stem), "short": card.get("short") or c.get("name", p.stem).split(" – ")[0],
+                 "place": card.get("place", ""), "accent": card.get("accent", "#f0a04a"),
+                 "indoor": sorted({b["name"] for b in c.get("buildings", []) if b.get("indoor") and b.get("name")})}
+        ring = c.get("boundary") or []
+        if ring:
+            lons = [pt[0] for pt in ring]
+            lats = [pt[1] for pt in ring]
+            entry["box"] = [round(min(lons), 6), round(min(lats), 6), round(max(lons), 6), round(max(lats), 6)]
+            entry["at"] = [round((min(lats) + max(lats)) / 2, 6), round((min(lons) + max(lons)) / 2, 6)]
+        out.append(entry)
     return out
