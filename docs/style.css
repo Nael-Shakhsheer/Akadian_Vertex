@@ -717,3 +717,19 @@ body.map-mode .topbar { display: none; }
 .set-toggle .txt { font-size: 14px; color: var(--text); }
 .set-toggle .txt small { display: block; margin-top: 3px; color: var(--muted); font-size: 12px; line-height: 1.45; }
 .set-toggle.off { opacity: .55; cursor: default; }
+
+/* the location permission card, floating over the map */
+.geo-ask {
+  position: absolute; left: 10px; right: 10px; bottom: 14px; z-index: 6;
+  display: grid; grid-template-columns: auto 1fr; gap: 10px 12px; align-items: start;
+  max-width: 420px; margin: 0 auto; padding: 14px 16px 13px;
+  background: var(--glass-3); border: 1px solid var(--line); border-radius: 16px;
+  box-shadow: 0 10px 30px var(--shadow); backdrop-filter: blur(12px);
+}
+.geo-ask.hidden { display: none; }
+.geo-mark { width: 22px; height: 22px; fill: var(--accent); margin-top: 2px; }
+.geo-text b { display: block; font-size: 15px; color: var(--text); }
+.geo-text small { display: block; margin-top: 4px; color: var(--muted); font-size: 12.5px; line-height: 1.45; }
+.geo-row { grid-column: 2; display: flex; gap: 8px; margin-top: 4px; }
+.geo-row .btn { flex: 1; }
+@media (max-width: 380px) { .geo-ask { grid-template-columns: 1fr; } .geo-row { grid-column: 1; } }

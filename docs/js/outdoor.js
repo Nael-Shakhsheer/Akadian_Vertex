@@ -405,7 +405,16 @@ export class OutdoorMap {
     this.map.on('dblclick', (e) => {
       if (this.map.queryRenderedFeatures(e.point, { layers: ['bld-3d', 'bld-ghost'] })[0]) e.preventDefault();
     });
-    this.ready = new Promise((r) => this.map.on('load', r));
+    // `load` waits for the first tiles as well as the style, so one slow or missing tile stops it firing at
+    // all — and then everything behind `ready` waits for ever: the walking route, the parked car, the bobbing
+    // markers, and (until this was found) the location watch. Every layer is declared in the style handed to
+    // the constructor above, so a loaded style is all any of those callers actually need.
+    this.ready = new Promise((resolve) => {
+      if (this.map.isStyleLoaded()) return resolve();
+      this.map.on('style.load', resolve);
+      this.map.on('load', resolve);
+      this.map.on('idle', resolve); // even a style that fails to finish settles here rather than hanging
+    });
     this.ready.then(() => this.floatMarkers());
   }
 

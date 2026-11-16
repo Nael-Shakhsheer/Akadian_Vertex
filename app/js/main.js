@@ -15,7 +15,6 @@ import { startUsage, count, countBuilding, usageOn, setUsage } from './usage.js'
 const $ = (s) => document.querySelector(s);
 applyAppearance(); // the inline boot script already painted the base; this settles the rest
 const ARRIVE_RADIUS = 20;     // m from the entrance counts as "arrived"
-const FAR_FROM_CAMPUS = 3000; // m; beyond this we assume a demo and let you tap the map
 const DATA = window.AKADIAN_DATA || '/api/public'; // published maps, served read-only by the engine
 const params = new URLSearchParams(location.search);
 // A plain launch (not a shared link or QR code) starts by asking which campus.
@@ -229,7 +228,7 @@ function enterHome() {
   renderHome();
   setSnap('peek', false);
   if (!homeFitted) { homeFitted = true; fitCore(); }
-  outdoor.ready.then(() => startGps());
+  initLocation(); // not behind outdoor.ready: finding you has nothing to do with the map finishing its tiles
 }
 // Browser forward to a place you had closed: put its card and route back.
 function restoreOutdoor(mode) {
@@ -821,7 +820,7 @@ const outdoor = new OutdoorMap($('#map'), campus, {
     chooseParking(lot);
   },
   onMapClick: (ll, bld) => {
-    if (!state.demo) return;
+    if (!state.demo && state.user) return; // a real fix wins; before one arrives, a tap is better than nothing
     if (bld) { // tapped a 3D building: stand at its middle
       const n = bld.ring.length - 1;
       ll = [bld.ring.slice(0, n).reduce((s, p) => s + p[1], 0) / n, bld.ring.slice(0, n).reduce((s, p) => s + p[0], 0) / n];
@@ -840,45 +839,138 @@ const outdoor = new OutdoorMap($('#map'), campus, {
 });
 
 // ---------- location ----------
+// Three faults here all looked the same from outside — no blue dot, on any campus, forever.
+//
+//  * watchPosition reports an ordinary timeout through its error callback, and this used to tear the watch
+//    down and switch to demo mode on the first one. A phone inside a building routinely needs longer than
+//    the old 15s to get its first high-accuracy fix, so the app gave up while the hardware was still trying.
+//    Worse, demo mode then blocked every later attempt, so it stayed given up until the page was reloaded.
+//  * On a home-screen launch, iOS has its permission sheet on screen while that clock runs. Read it, think,
+//    tap Allow at twenty seconds, and the watch had already been thrown away. Asking from a tap instead
+//    starts the clock after the answer rather than during it.
+//  * "On campus" was a 3 km circle around one building — the Johnson Center, or Torgersen Hall at Virginia
+//    Tech, which sits at the edge of a campus 2.8 km across. Stand far enough from that one building and the
+//    app decided you had left campus and refused to place you. The map's own tile bounds are the honest
+//    test, because that is exactly the area it has the tiles to draw you in.
+//
+// So: only a refused permission stops the watch. A timeout or a momentary "position unavailable" is normal
+// indoors and usually clears by itself, so those leave it running and just say what is happening.
+const GEO_KEY = 'akadian:geo'; // "yes" is remembered, so one grant covers every later launch
+
+const geoWanted = () => { try { return localStorage.getItem(GEO_KEY) === 'on'; } catch { return false; } };
+const rememberGeo = (on) => { try { localStorage.setItem(GEO_KEY, on ? 'on' : 'off'); } catch {} };
+// [w, s, e, n] of the downloaded map area: where the app has tiles, and so where it can honestly draw you.
+const inBounds = ([lat, lon]) => {
+  const b = campus.bounds;
+  return !b || (lon >= b[0] && lon <= b[2] && lat >= b[1] && lat <= b[3]);
+};
+// How far outside you are, measured to the real campus outline rather than to the middle of it.
+const fromCampus = (ll) => (campus.boundary?.length
+  ? metersBetween(ll, nearestOnRing(campus.boundary, ll))
+  : metersBetween(ll, [campus.buildings[0].ring[0][1], campus.buildings[0].ring[0][0]]));
+
 function setGps(text, { retry = false } = {}) {
   $('#gpsStatus').textContent = text;
   $('#gpsStatus2').textContent = text;
   $('#gpsRetry').classList.toggle('hidden', !retry);
 }
-$('#gpsRetry').onclick = () => { state.demo = false; startGps(); };
+$('#gpsRetry').onclick = () => { rememberGeo(true); startGps(); };
 
 let watchId = null;
+let gpsFails = 0;
 let offCampus = false; // GPS works but you're far away: tap the map for a start, and keep watching for when you arrive
-function startGps() {
-  if (watchId !== null || state.demo) return;
+
+/** What the browser would do if asked. Older iOS Safari has no permissions API, hence 'unknown'. */
+async function geoPermission() {
+  try {
+    return (await navigator.permissions.query({ name: 'geolocation' })).state;
+  } catch {
+    return 'unknown';
+  }
+}
+
+/** At boot: go straight to it if that is already settled, otherwise ask in our own words first. */
+async function initLocation() {
+  if (watchId !== null) return;
   if (!('geolocation' in navigator)) return demoMode('Location isn’t available on this device.');
+  const p = await geoPermission();
+  if (p === 'granted' || (p === 'unknown' && geoWanted())) return startGps();
+  if (p === 'denied') return locationBlocked();
+  askLocation();
+}
+
+// Our own card first, so the browser's sheet comes up from a tap. That is both more reliable on a
+// home-screen iPhone and fairer: it says why before the system asks whether.
+function askLocation() {
+  $('#geoAsk')?.classList.remove('hidden');
+  setGps('Turn on location to route you from where you are.', { retry: true });
+}
+$('#geoYes')?.addEventListener('click', () => { $('#geoAsk')?.classList.add('hidden'); rememberGeo(true); startGps(); });
+$('#geoNo')?.addEventListener('click', () => {
+  $('#geoAsk')?.classList.add('hidden');
+  rememberGeo(false);
+  demoMode('No location.');
+});
+
+function locationBlocked() {
+  rememberGeo(false);
+  demoMode(isIOS
+    ? 'Location is blocked. Turn it on in Settings › Privacy & Security › Location Services.'
+    : 'Location is blocked for this site. Turn it on in your browser’s site settings.');
+}
+
+function startGps() {
+  $('#geoAsk')?.classList.add('hidden');
+  state.demo = false;
+  if (watchId !== null) return;
+  gpsFails = 0;
   setGps('Finding your location…');
-  watchId = navigator.geolocation.watchPosition(
-    (p) => {
-      const ll = [p.coords.latitude, p.coords.longitude];
-      const o = main ? [main.b.building.origin.lat, main.b.building.origin.lon] : [campus.buildings[0].ring[0][1], campus.buildings[0].ring[0][0]];
-      const away = metersBetween(ll, o);
-      if (away > FAR_FROM_CAMPUS) {
-        if (!offCampus && state.user) setUser(null); // just left campus: drop the last on-campus fix too
-        offCampus = state.demo = true; // the map doesn't reach that far, so never draw you there (or anywhere)
-        setGps(`You’re ${fmtDist(away)} from campus. Tap the map to choose your start.`);
-        if (state.mode === 'park') updateParkSheet();
-        return;
-      }
-      if (offCampus) offCampus = state.demo = false; // you've arrived: real GPS takes over from any tapped start
-      setGps(`Using your location (±${fmtDist(p.coords.accuracy)})`);
-      if (p.coords.heading != null && !Number.isNaN(p.coords.heading) && p.coords.speed > 0.7) nav.course = p.coords.heading;
-      parkDetector.add({ lat: ll[0], lon: ll[1], speed: p.coords.speed, t: p.timestamp });
-      setUser(ll);
-    },
-    (err) => demoMode(err.code === 1 ? 'Location is off.' : 'Couldn’t find your location.'),
-    { enableHighAccuracy: true, maximumAge: 5000, timeout: 15000 },
-  );
+  // A coarse fix from wi-fi or the network puts you on the map in a second or two while the precise one is
+  // still coming, and maximumAge lets it reuse a fix something else on the phone has just taken.
+  navigator.geolocation.getCurrentPosition(onFix, () => {},
+    { enableHighAccuracy: false, maximumAge: 60000, timeout: 10000 });
+  // No timeout on the watch itself: one that keeps trying is worth more than one that gives up at 15s.
+  watchId = navigator.geolocation.watchPosition(onFix, onGpsError, { enableHighAccuracy: true, maximumAge: 5000 });
+}
+
+function stopGps() {
+  if (watchId !== null) navigator.geolocation.clearWatch(watchId);
+  watchId = null;
+}
+
+function onFix(p) {
+  gpsFails = 0;
+  rememberGeo(true); // it worked, so later launches can go straight to it
+  const ll = [p.coords.latitude, p.coords.longitude];
+  if (!inBounds(ll)) {
+    if (!offCampus && state.user) setUser(null); // just left campus: drop the last on-campus fix too
+    offCampus = state.demo = true; // the map doesn't reach that far, so never draw you there (or anywhere)
+    setGps(`You’re ${fmtDist(fromCampus(ll))} from campus. Tap the map to choose your start.`);
+    if (state.mode === 'park') updateParkSheet();
+    return;
+  }
+  if (offCampus) offCampus = state.demo = false; // you've arrived: real GPS takes over from any tapped start
+  setGps(`Using your location (±${fmtDist(p.coords.accuracy)})`);
+  if (p.coords.heading != null && !Number.isNaN(p.coords.heading) && p.coords.speed > 0.7) nav.course = p.coords.heading;
+  parkDetector.add({ lat: ll[0], lon: ll[1], speed: p.coords.speed, t: p.timestamp });
+  setUser(ll);
+}
+
+function onGpsError(err) {
+  if (err.code === 1) { // PERMISSION_DENIED: the only one there is no point waiting out
+    stopGps();
+    locationBlocked();
+    return;
+  }
+  gpsFails += 1;
+  if (state.user) return; // we already have somewhere to put you; the watch carries on regardless
+  setGps(gpsFails > 2
+    ? 'Still looking for you — tap the map to pick your start in the meantime.'
+    : 'Finding your location…', { retry: gpsFails > 2 });
 }
 
 function demoMode(reason) {
-  if (watchId !== null) navigator.geolocation.clearWatch(watchId);
-  watchId = null;
+  stopGps();
   state.demo = true;
   setGps(`${reason} Tap the map to choose your start.`, { retry: true });
   if (state.mode === 'park') updateParkSheet();
@@ -1406,7 +1498,8 @@ function openParkSheet() {
   show('outdoor', { url: '?park=1' });
   updateBar(null);
   setSnap('peek', false);
-  outdoor.ready.then(() => { startGps(); updateParkSheet(true); });
+  startGps();
+  outdoor.ready.then(() => updateParkSheet(true));
 }
 
 function updateParkSheet(first = false) {
@@ -1620,6 +1713,7 @@ function openSettings() {
 // Tallies only, and switched off on the static build, where there is no server to count with.
 function renderUsage() {
   const box = $('#usageToggle');
+  if (!box) return;
   box.checked = usageOn();
   box.disabled = !window.AKADIAN_USAGE;
   box.closest('.set-toggle').classList.toggle('off', !window.AKADIAN_USAGE);
