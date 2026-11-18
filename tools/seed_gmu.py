@@ -198,8 +198,23 @@ def campus_raw():
     return raw
 
 
+CARD = {"short": "George Mason", "place": "Fairfax, VA", "accent": "#006633"}  # the campus picker's card
+
+
 def campus_layer(indoor, raw=None):
-    return campus_pipe.compile_campus("George Mason University – Fairfax", raw or campus_raw(), HINTS, indoor)
+    camp = campus_pipe.compile_campus("George Mason University – Fairfax", raw or campus_raw(), HINTS, indoor)
+    # Here rather than in main(), so --campus-only keeps it too: before, that path published a campus with no
+    # card, and the picker fell back to its defaults for GMU.
+    camp["card"] = CARD
+    return camp
+
+
+def fenwick_link():
+    """Fenwick Library's entry for the campus's indoor links. Built by tools/gmu_fenwick.py from GMU Libraries'
+    floor maps; its project needs only the committed labels and OSM outline, not the maps themselves."""
+    import gmu_fenwick
+    fen = gmu_fenwick.project()
+    return {str(fen["osm_way"]): f"buildings/{fen['id']}.json"}
 
 
 def main():
@@ -211,7 +226,7 @@ def main():
     home = Path(a.home)
     if a.campus_only:
         projects = [jc_project()] + [plan_project(cfg) for cfg in OTHER]
-        camp = campus_layer({str(p["osm_way"]): f"buildings/{p['id']}.json" for p in projects})
+        camp = campus_layer({**{str(p["osm_way"]): f"buildings/{p['id']}.json" for p in projects}, **fenwick_link()})
         print(f"GMU campus: {camp.pop('stats')}")
         out = home / "published/campus"
         out.mkdir(parents=True, exist_ok=True)
@@ -264,13 +279,18 @@ def main():
         print(f"{p['name']}: {report['rooms']} rooms, {report['links']} links, georef {report['georef']}")
 
     raw = campus_raw()
-    camp = campus_layer({str(p["osm_way"]): f"buildings/{p['id']}.json" for p, _, _ in projects}, raw)
+    # Fenwick Library: redrawn from GMU Libraries' floor maps by its own tool (see tools/gmu_fenwick.py)
+    import gmu_fenwick
+    if not all((gmu_fenwick.FEN / f"plans/fenwick-floor{n}.png").exists() for *_, n in gmu_fenwick.FLOORS):
+        gmu_fenwick.prepare(verbose=False)
+    fen = gmu_fenwick.publish(store)
+    camp = campus_layer({**{str(p["osm_way"]): f"buildings/{p['id']}.json" for p, _, _ in projects},
+                         str(fen["osm_way"]): f"buildings/{fen['id']}.json"}, raw)
     stats = camp.pop("stats")
-    camp["card"] = {"short": "George Mason", "place": "Fairfax, VA", "accent": "#006633"}  # campus picker
     store.publish("campus", "gmu", camp)
     if not a.publish_only:
         store.save("campuses", "gmu", {"id": "gmu", "name": camp["name"], "boundary_way": raw["boundary"]["id"],
-                                       "hints": HINTS, "raw": raw, "indoor": {str(p["osm_way"]): p["id"] for p, _, _ in projects},
+                                       "hints": HINTS, "raw": raw, "indoor": {**{str(p["osm_way"]): p["id"] for p, _, _ in projects}, str(fen["osm_way"]): fen["id"]},
                                        "stats": stats})
     print(f"GMU campus: {stats}")
     if not (home / "published/tiles/gmu/meta.json").exists():

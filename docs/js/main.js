@@ -189,7 +189,8 @@ const main = indoors[0]; // the main indoor building: links without a building, 
 const ibByBld = new Map(indoors.map((ib) => [ib.bld.id, ib]));
 const ibOf = new Map(indoors.flatMap((ib) => ib.b.rooms.map((r) => [r, ib]))); // room -> its building
 const routingFor = (ib) => (ib.routing ||= new IndoorRouting(`${DATA}/${ib.bld.indoor}`, ib.b));
-const roomSub = (room, ib) => `${room.kind === 'room' ? `Room ${room.id} · ` : ''}${floorName(ib.b, room.floor)} · ${ib.name}`;
+// an area of a building (Fenwick's lettered zones: the stacks, a gallery) has no room number to show
+const roomSub = (room, ib) => `${room.kind === 'room' && !room.area ? `Room ${room.id} · ` : ''}${floorName(ib.b, room.floor)} · ${ib.name}`;
 const CAMPUS_SHORT = campus.name.split(' – ')[0];
 startUsage(CAMPUS); // anonymous tallies, and only when the engine is serving: see js/usage.js
 $('#campusName').textContent = CAMPUS_SHORT;

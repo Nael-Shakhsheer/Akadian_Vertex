@@ -1,0 +1,353 @@
+[
+ {
+  "x": 540,
+  "y": 1110,
+  "id": "ELEV1",
+  "kind": "elevator"
+ },
+ {
+  "x": 592,
+  "y": 1035,
+  "id": "ELEV2",
+  "kind": "elevator"
+ },
+ {
+  "x": 1060,
+  "y": 852,
+  "id": "ELEV3",
+  "kind": "elevator"
+ },
+ {
+  "id": "RESTROOM1",
+  "kind": "restroom",
+  "x": 252,
+  "y": 657
+ },
+ {
+  "id": "RESTROOM2",
+  "kind": "restroom",
+  "x": 255,
+  "y": 1506
+ },
+ {
+  "id": "RESTROOM3",
+  "kind": "restroom",
+  "x": 258,
+  "y": 765
+ },
+ {
+  "id": "RESTROOM4",
+  "kind": "restroom",
+  "x": 258,
+  "y": 1392
+ },
+ {
+  "id": "RESTROOM5",
+  "kind": "restroom",
+  "x": 975,
+  "y": 693
+ },
+ {
+  "id": "RESTROOM6",
+  "kind": "restroom",
+  "x": 975,
+  "y": 771
+ },
+ {
+  "id": "RESTROOM7",
+  "kind": "restroom",
+  "x": 1059,
+  "y": 720
+ },
+ {
+  "id": "4001",
+  "kind": "room",
+  "x": 1310,
+  "y": 1924,
+  "name": "Study Room"
+ },
+ {
+  "id": "4002",
+  "kind": "room",
+  "x": 1310,
+  "y": 1888,
+  "name": "Study Room"
+ },
+ {
+  "id": "4003",
+  "kind": "room",
+  "x": 1257,
+  "y": 1749,
+  "name": "Study Room"
+ },
+ {
+  "id": "4007",
+  "kind": "room",
+  "x": 1270,
+  "y": 674,
+  "name": "Study Room"
+ },
+ {
+  "id": "4008",
+  "kind": "room",
+  "x": 1218,
+  "y": 565,
+  "name": "Seminar Room"
+ },
+ {
+  "id": "4009",
+  "kind": "room",
+  "x": 1092,
+  "y": 370,
+  "name": "Study Room"
+ },
+ {
+  "id": "4010",
+  "kind": "room",
+  "x": 1086,
+  "y": 420,
+  "name": "Instruction Room"
+ },
+ {
+  "id": "4102",
+  "kind": "room",
+  "x": 964,
+  "y": 2004,
+  "name": "Study Room"
+ },
+ {
+  "id": "4103",
+  "kind": "room",
+  "x": 1076,
+  "y": 1800,
+  "name": "Study Room"
+ },
+ {
+  "id": "4104",
+  "kind": "room",
+  "x": 1008,
+  "y": 1800,
+  "name": "Study Room"
+ },
+ {
+  "id": "4105",
+  "kind": "room",
+  "x": 964,
+  "y": 1892,
+  "name": "Study Room"
+ },
+ {
+  "id": "4106",
+  "kind": "room",
+  "x": 864,
+  "y": 1892,
+  "name": "Study Room"
+ },
+ {
+  "id": "4201",
+  "kind": "room",
+  "x": 1270,
+  "y": 1524,
+  "name": "Study Room"
+ },
+ {
+  "id": "4202",
+  "kind": "room",
+  "x": 1273,
+  "y": 1674,
+  "name": "Study Room"
+ },
+ {
+  "id": "4300",
+  "kind": "room",
+  "x": 1261,
+  "y": 924,
+  "name": "Administration"
+ },
+ {
+  "id": "4315",
+  "kind": "room",
+  "x": 1396,
+  "y": 598,
+  "name": "Mason Publishing Group",
+  "area": false
+ },
+ {
+  "id": "4603",
+  "kind": "room",
+  "x": 258,
+  "y": 1204,
+  "name": "Study Room"
+ },
+ {
+  "id": "4605",
+  "kind": "room",
+  "x": 260,
+  "y": 1694,
+  "name": "Study Room"
+ },
+ {
+  "id": "4607",
+  "kind": "room",
+  "x": 792,
+  "y": 1640,
+  "name": "Study Room"
+ },
+ {
+  "id": "4612",
+  "kind": "room",
+  "x": 873,
+  "y": 1562,
+  "name": "Study Room"
+ },
+ {
+  "id": "4613",
+  "kind": "room",
+  "x": 873,
+  "y": 1524,
+  "name": "Study Room"
+ },
+ {
+  "id": "4614",
+  "kind": "room",
+  "x": 873,
+  "y": 1330,
+  "name": "Study Room"
+ },
+ {
+  "id": "4701",
+  "kind": "room",
+  "x": 870,
+  "y": 954,
+  "name": "Study Room"
+ },
+ {
+  "id": "4702",
+  "kind": "room",
+  "x": 872,
+  "y": 834,
+  "name": "Study Room"
+ },
+ {
+  "id": "4703",
+  "kind": "room",
+  "x": 874,
+  "y": 642,
+  "name": "Study Room"
+ },
+ {
+  "id": "4705",
+  "kind": "room",
+  "x": 762,
+  "y": 423,
+  "name": "Study Room"
+ },
+ {
+  "id": "4706",
+  "kind": "room",
+  "x": 693,
+  "y": 423,
+  "name": "Study Room"
+ },
+ {
+  "id": "4707",
+  "kind": "room",
+  "x": 498,
+  "y": 423,
+  "name": "Study Room"
+ },
+ {
+  "id": "4708",
+  "kind": "room",
+  "x": 438,
+  "y": 423,
+  "name": "Study Room"
+ },
+ {
+  "id": "4713",
+  "kind": "room",
+  "x": 258,
+  "y": 950,
+  "name": "Study Room"
+ },
+ {
+  "id": "4A",
+  "kind": "room",
+  "x": 567,
+  "y": 638,
+  "name": "Tower Book Stacks K–PN",
+  "area": true
+ },
+ {
+  "id": "4A-2",
+  "kind": "room",
+  "x": 567,
+  "y": 1358,
+  "name": "Tower Book Stacks K–PN",
+  "area": true
+ },
+ {
+  "id": "4B",
+  "kind": "room",
+  "x": 513,
+  "y": 178,
+  "name": "Compact Shelving PQ–Q",
+  "area": true
+ },
+ {
+  "id": "4B-2",
+  "kind": "room",
+  "x": 1060,
+  "y": 178,
+  "name": "Compact Shelving PQ–Q",
+  "area": true
+ },
+ {
+  "x": 249,
+  "y": 1761,
+  "id": "STAIR1",
+  "kind": "stair"
+ },
+ {
+  "x": 252,
+  "y": 387,
+  "id": "STAIR2",
+  "kind": "stair"
+ },
+ {
+  "x": 510,
+  "y": 1758,
+  "id": "STAIR3",
+  "kind": "stair"
+ },
+ {
+  "x": 627,
+  "y": 402,
+  "id": "STAIR4",
+  "kind": "stair"
+ },
+ {
+  "x": 876,
+  "y": 1386,
+  "id": "STAIR5",
+  "kind": "stair"
+ },
+ {
+  "x": 1092,
+  "y": 1152,
+  "id": "STAIR6",
+  "kind": "stair"
+ },
+ {
+  "x": 1359,
+  "y": 1767,
+  "id": "STAIR7",
+  "kind": "stair"
+ },
+ {
+  "x": 1368,
+  "y": 369,
+  "id": "STAIR8",
+  "kind": "stair"
+ }
+]

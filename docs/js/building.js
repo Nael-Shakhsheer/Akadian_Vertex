@@ -59,6 +59,9 @@ const KIND_LABEL = { restroom: 'Restroom', stair: 'Stairs', elevator: 'Elevator'
 
 export function roomTitle(r) {
   if (r.kind === 'restroom') {
+    // A map that doesn't say whose restroom it is (Fenwick's pictograms don't read reliably at that size) gets
+    // a plain "Restroom" rather than a guessed gender.
+    if (r.id.startsWith('RESTROOM')) return 'Restroom';
     const who = r.id.startsWith('WOMENS') ? "Women's" : r.id.startsWith('MENS') ? "Men's" : 'All-gender';
     return `${who} restroom`;
   }

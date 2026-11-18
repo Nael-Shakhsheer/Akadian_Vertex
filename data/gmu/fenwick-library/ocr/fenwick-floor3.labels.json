@@ -1,0 +1,361 @@
+[
+ {
+  "x": 537,
+  "y": 1113,
+  "id": "ELEV1",
+  "kind": "elevator"
+ },
+ {
+  "x": 590,
+  "y": 1038,
+  "id": "ELEV2",
+  "kind": "elevator"
+ },
+ {
+  "x": 1058,
+  "y": 852,
+  "id": "ELEV3",
+  "kind": "elevator"
+ },
+ {
+  "id": "RESTROOM1",
+  "kind": "restroom",
+  "x": 252,
+  "y": 1395
+ },
+ {
+  "id": "RESTROOM2",
+  "kind": "restroom",
+  "x": 252,
+  "y": 1509
+ },
+ {
+  "id": "RESTROOM3",
+  "kind": "restroom",
+  "x": 255,
+  "y": 762
+ },
+ {
+  "id": "RESTROOM4",
+  "kind": "restroom",
+  "x": 261,
+  "y": 657
+ },
+ {
+  "id": "RESTROOM5",
+  "kind": "restroom",
+  "x": 1086,
+  "y": 687
+ },
+ {
+  "id": "RESTROOM6",
+  "kind": "restroom",
+  "x": 1086,
+  "y": 771
+ },
+ {
+  "id": "3001",
+  "kind": "room",
+  "x": 1280,
+  "y": 1954,
+  "name": "Seminar Room",
+  "area": false
+ },
+ {
+  "id": "3002",
+  "kind": "room",
+  "x": 1258,
+  "y": 1756,
+  "name": "Study Room"
+ },
+ {
+  "id": "3008",
+  "kind": "room",
+  "x": 1094,
+  "y": 393
+ },
+ {
+  "id": "3009",
+  "kind": "room",
+  "x": 1094,
+  "y": 448,
+  "name": "Preservation Lab"
+ },
+ {
+  "id": "3101",
+  "kind": "room",
+  "x": 1090,
+  "y": 1798,
+  "name": "Study Room"
+ },
+ {
+  "id": "3102",
+  "kind": "room",
+  "x": 1036,
+  "y": 1886,
+  "name": "Presentation Practice Room"
+ },
+ {
+  "id": "3103",
+  "kind": "room",
+  "x": 1008,
+  "y": 1798,
+  "name": "Study Room"
+ },
+ {
+  "id": "3104",
+  "kind": "room",
+  "x": 958,
+  "y": 1886,
+  "name": "Study Room"
+ },
+ {
+  "id": "3105",
+  "kind": "room",
+  "x": 882,
+  "y": 1887,
+  "name": "Study Room"
+ },
+ {
+  "id": "3106",
+  "kind": "room",
+  "x": 238,
+  "y": 1900,
+  "name": "Study Room"
+ },
+ {
+  "id": "3107",
+  "kind": "room",
+  "x": 237,
+  "y": 1987,
+  "name": "Study Room"
+ },
+ {
+  "id": "3109",
+  "kind": "room",
+  "x": 882,
+  "y": 1998,
+  "name": "Study Room"
+ },
+ {
+  "id": "3110",
+  "kind": "room",
+  "x": 956,
+  "y": 1997,
+  "name": "Study Room"
+ },
+ {
+  "id": "3111",
+  "kind": "room",
+  "x": 1033,
+  "y": 1998,
+  "name": "Presentation Practice Room"
+ },
+ {
+  "id": "3201",
+  "kind": "room",
+  "x": 1268,
+  "y": 1525,
+  "name": "Study Room"
+ },
+ {
+  "id": "3202",
+  "kind": "room",
+  "x": 1269,
+  "y": 1676,
+  "name": "Study Room"
+ },
+ {
+  "id": "3300",
+  "kind": "room",
+  "x": 1494,
+  "y": 802,
+  "name": "Technical Services",
+  "area": false
+ },
+ {
+  "id": "3403",
+  "kind": "room",
+  "x": 262,
+  "y": 283,
+  "name": "Reading Room"
+ },
+ {
+  "id": "3603",
+  "kind": "room",
+  "x": 260,
+  "y": 1200,
+  "name": "Study Room"
+ },
+ {
+  "id": "3605",
+  "kind": "room",
+  "x": 260,
+  "y": 1688,
+  "name": "Study Room"
+ },
+ {
+  "id": "3606",
+  "kind": "room",
+  "x": 439,
+  "y": 1739,
+  "name": "Study Room"
+ },
+ {
+  "id": "3607",
+  "kind": "room",
+  "x": 627,
+  "y": 1734,
+  "name": "Study Room"
+ },
+ {
+  "id": "3608",
+  "kind": "room",
+  "x": 693,
+  "y": 1734,
+  "name": "Study Room"
+ },
+ {
+  "id": "3609",
+  "kind": "room",
+  "x": 870,
+  "y": 1570,
+  "name": "Study Room"
+ },
+ {
+  "id": "3610",
+  "kind": "room",
+  "x": 870,
+  "y": 1525,
+  "name": "Study Room"
+ },
+ {
+  "id": "3611",
+  "kind": "room",
+  "x": 870,
+  "y": 1332,
+  "name": "Study Room"
+ },
+ {
+  "id": "3701",
+  "kind": "room",
+  "x": 870,
+  "y": 952,
+  "name": "Study Room"
+ },
+ {
+  "id": "3702",
+  "kind": "room",
+  "x": 870,
+  "y": 829,
+  "name": "Study Room"
+ },
+ {
+  "id": "3705",
+  "kind": "room",
+  "x": 759,
+  "y": 423,
+  "name": "Study Room"
+ },
+ {
+  "id": "3706",
+  "kind": "room",
+  "x": 693,
+  "y": 423,
+  "name": "Study Room"
+ },
+ {
+  "id": "3708",
+  "kind": "room",
+  "x": 436,
+  "y": 425,
+  "name": "Study Room"
+ },
+ {
+  "id": "3713",
+  "kind": "room",
+  "x": 256,
+  "y": 952,
+  "name": "Study Room"
+ },
+ {
+  "id": "3A",
+  "kind": "room",
+  "x": 565,
+  "y": 635,
+  "name": "Tower Book Stacks AC–GR",
+  "area": true
+ },
+ {
+  "id": "3A-2",
+  "kind": "room",
+  "x": 565,
+  "y": 1382,
+  "name": "Tower Book Stacks AC–GR",
+  "area": true
+ },
+ {
+  "id": "3B",
+  "kind": "room",
+  "x": 510,
+  "y": 190,
+  "name": "Compact Shelving GT–JZ",
+  "area": true
+ },
+ {
+  "id": "3B-2",
+  "kind": "room",
+  "x": 1060,
+  "y": 189,
+  "name": "Compact Shelving GT–JZ",
+  "area": true
+ },
+ {
+  "x": 246,
+  "y": 390,
+  "id": "STAIR1",
+  "kind": "stair"
+ },
+ {
+  "x": 249,
+  "y": 1764,
+  "id": "STAIR2",
+  "kind": "stair"
+ },
+ {
+  "x": 507,
+  "y": 1755,
+  "id": "STAIR3",
+  "kind": "stair"
+ },
+ {
+  "x": 627,
+  "y": 405,
+  "id": "STAIR4",
+  "kind": "stair"
+ },
+ {
+  "x": 876,
+  "y": 1389,
+  "id": "STAIR5",
+  "kind": "stair"
+ },
+ {
+  "x": 1089,
+  "y": 1152,
+  "id": "STAIR6",
+  "kind": "stair"
+ },
+ {
+  "x": 1350,
+  "y": 1776,
+  "id": "STAIR7",
+  "kind": "stair"
+ },
+ {
+  "x": 1368,
+  "y": 369,
+  "id": "STAIR8",
+  "kind": "stair"
+ }
+]

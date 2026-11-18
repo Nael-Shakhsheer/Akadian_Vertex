@@ -1,0 +1,275 @@
+[
+ {
+  "x": 507,
+  "y": 1113,
+  "id": "ELEV1",
+  "kind": "elevator"
+ },
+ {
+  "x": 562,
+  "y": 1035,
+  "id": "ELEV2",
+  "kind": "elevator"
+ },
+ {
+  "x": 1046,
+  "y": 846,
+  "id": "ELEV3",
+  "kind": "elevator"
+ },
+ {
+  "id": "RESTROOM1",
+  "kind": "restroom",
+  "x": 213,
+  "y": 1398
+ },
+ {
+  "id": "RESTROOM2",
+  "kind": "restroom",
+  "x": 219,
+  "y": 654
+ },
+ {
+  "id": "RESTROOM3",
+  "kind": "restroom",
+  "x": 219,
+  "y": 756
+ },
+ {
+  "id": "RESTROOM4",
+  "kind": "restroom",
+  "x": 219,
+  "y": 1503
+ },
+ {
+  "id": "RESTROOM5",
+  "kind": "restroom",
+  "x": 1068,
+  "y": 756
+ },
+ {
+  "id": "RESTROOM6",
+  "kind": "restroom",
+  "x": 1071,
+  "y": 681
+ },
+ {
+  "id": "5001",
+  "kind": "room",
+  "x": 1020,
+  "y": 1305,
+  "name": "Digital Lab"
+ },
+ {
+  "id": "5003",
+  "kind": "room",
+  "x": 1298,
+  "y": 1410,
+  "name": "Faculty Collaborative Research Center",
+  "area": false
+ },
+ {
+  "id": "5100",
+  "kind": "room",
+  "x": 1178,
+  "y": 1752,
+  "name": "Virtual Library of Virginia (VIVA) at George Mason"
+ },
+ {
+  "id": "5202",
+  "kind": "room",
+  "x": 1292,
+  "y": 745,
+  "name": "Graduate Study Room"
+ },
+ {
+  "id": "5300",
+  "kind": "room",
+  "x": 1150,
+  "y": 650,
+  "name": "Systems Group"
+ },
+ {
+  "id": "5603",
+  "kind": "room",
+  "x": 223,
+  "y": 1203,
+  "name": "Graduate Study Room"
+ },
+ {
+  "id": "5605",
+  "kind": "room",
+  "x": 224,
+  "y": 1696,
+  "name": "Graduate Study Room"
+ },
+ {
+  "id": "5606",
+  "kind": "room",
+  "x": 410,
+  "y": 1751,
+  "name": "Graduate Study Room"
+ },
+ {
+  "id": "5607",
+  "kind": "room",
+  "x": 603,
+  "y": 1749,
+  "name": "Graduate Study Room"
+ },
+ {
+  "id": "5608",
+  "kind": "room",
+  "x": 666,
+  "y": 1749,
+  "name": "Graduate Study Room"
+ },
+ {
+  "id": "5609",
+  "kind": "room",
+  "x": 848,
+  "y": 1570,
+  "name": "Graduate Study Room"
+ },
+ {
+  "id": "5610",
+  "kind": "room",
+  "x": 846,
+  "y": 1532,
+  "name": "Graduate Study Room"
+ },
+ {
+  "id": "5611",
+  "kind": "room",
+  "x": 847,
+  "y": 1335,
+  "name": "Graduate Study Room"
+ },
+ {
+  "id": "5701",
+  "kind": "room",
+  "x": 850,
+  "y": 948,
+  "name": "Graduate Study Room"
+ },
+ {
+  "id": "5702",
+  "kind": "room",
+  "x": 849,
+  "y": 825,
+  "name": "Graduate Study Room"
+ },
+ {
+  "id": "5703",
+  "kind": "room",
+  "x": 850,
+  "y": 620,
+  "name": "Graduate Study Room"
+ },
+ {
+  "id": "5705",
+  "kind": "room",
+  "x": 850,
+  "y": 454,
+  "name": "Graduate Study Room"
+ },
+ {
+  "id": "5706",
+  "kind": "room",
+  "x": 734,
+  "y": 406,
+  "name": "Graduate Study Room"
+ },
+ {
+  "id": "5707",
+  "kind": "room",
+  "x": 674,
+  "y": 406,
+  "name": "Graduate Study Room"
+ },
+ {
+  "id": "5709",
+  "kind": "room",
+  "x": 408,
+  "y": 406,
+  "name": "Graduate Study Room"
+ },
+ {
+  "id": "5710",
+  "kind": "room",
+  "x": 223,
+  "y": 451,
+  "name": "Graduate Study Room"
+ },
+ {
+  "id": "5715",
+  "kind": "room",
+  "x": 222,
+  "y": 947,
+  "name": "Graduate Study Room"
+ },
+ {
+  "id": "5A",
+  "kind": "room",
+  "x": 529,
+  "y": 636,
+  "name": "Tower Book Stacks QA–ZA & Thesis/Dissertations",
+  "area": true
+ },
+ {
+  "id": "5A-2",
+  "kind": "room",
+  "x": 529,
+  "y": 1382,
+  "name": "Tower Book Stacks QA–ZA & Thesis/Dissertations",
+  "area": true
+ },
+ {
+  "x": 216,
+  "y": 369,
+  "id": "STAIR1",
+  "kind": "stair"
+ },
+ {
+  "x": 216,
+  "y": 1776,
+  "id": "STAIR2",
+  "kind": "stair"
+ },
+ {
+  "x": 474,
+  "y": 1767,
+  "id": "STAIR3",
+  "kind": "stair"
+ },
+ {
+  "x": 600,
+  "y": 384,
+  "id": "STAIR4",
+  "kind": "stair"
+ },
+ {
+  "x": 855,
+  "y": 1389,
+  "id": "STAIR5",
+  "kind": "stair"
+ },
+ {
+  "x": 1071,
+  "y": 1119,
+  "id": "STAIR6",
+  "kind": "stair"
+ },
+ {
+  "x": 1350,
+  "y": 378,
+  "id": "STAIR7",
+  "kind": "stair"
+ },
+ {
+  "x": 1353,
+  "y": 1779,
+  "id": "STAIR8",
+  "kind": "stair"
+ }
+]

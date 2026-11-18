@@ -30,6 +30,10 @@ FILES = {
     "merten-hall/source/floor-plans-pdf/Merten-1.pdf": f"{BASE}/2020/11/Merten-First-Floor-Plan.pdf",
     # The HUB: floor 1 (updated 2025)
     "the-hub/source/floor-plans-pdf/Hub-1.pdf": f"{BASE}/2025/03/Updated-THE-HUB-1.pdf",
+    # Fenwick Library: floors 1-5, GMU Libraries' published floor maps (colour-coded, with room numbers and a
+    # directory); tools/gmu_fenwick.py turns them into an indoor map
+    **{f"fenwick-library/source/floor-maps/fenwick-floor{n}.jpg":
+       f"https://library.gmu.edu/sites/default/files/common/fenwick_maps/fenwickmap{n}.jpg" for n in range(1, 6)},
     # CUE bus timetable (Green 1/2, Gold 1/2), City of Fairfax
     "transit/cue-gtfs.zip": "https://www.fairfaxva.gov/files/assets/city/v/2/public-works/documents/schedules-and-maps/cue-gtfs.zip",
 }

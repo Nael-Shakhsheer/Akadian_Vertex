@@ -1,0 +1,296 @@
+[
+ {
+  "x": 542,
+  "y": 1119,
+  "id": "ELEV1",
+  "kind": "elevator"
+ },
+ {
+  "x": 592,
+  "y": 1041,
+  "id": "ELEV2",
+  "kind": "elevator"
+ },
+ {
+  "x": 1064,
+  "y": 855,
+  "id": "ELEV3",
+  "kind": "elevator"
+ },
+ {
+  "id": "RESTROOM1",
+  "kind": "restroom",
+  "x": 255,
+  "y": 1401
+ },
+ {
+  "id": "RESTROOM2",
+  "kind": "restroom",
+  "x": 261,
+  "y": 1503
+ },
+ {
+  "id": "RESTROOM3",
+  "kind": "restroom",
+  "x": 975,
+  "y": 696
+ },
+ {
+  "id": "RESTROOM4",
+  "kind": "restroom",
+  "x": 975,
+  "y": 777
+ },
+ {
+  "id": "RESTROOM5",
+  "kind": "restroom",
+  "x": 1029,
+  "y": 732
+ },
+ {
+  "id": "2001",
+  "kind": "room",
+  "x": 1290,
+  "y": 2050,
+  "name": "Main Reading Room"
+ },
+ {
+  "id": "2004",
+  "kind": "room",
+  "x": 1268,
+  "y": 1756,
+  "name": "Study Room"
+ },
+ {
+  "id": "2005",
+  "kind": "room",
+  "x": 1328,
+  "y": 748,
+  "name": "University Dissertation and Thesis Services",
+  "area": false
+ },
+ {
+  "id": "2201",
+  "kind": "room",
+  "x": 949,
+  "y": 2003,
+  "name": "Subject Librarians"
+ },
+ {
+  "id": "2202",
+  "kind": "room",
+  "x": 854,
+  "y": 2004,
+  "name": "Subject Librarians"
+ },
+ {
+  "id": "2203",
+  "kind": "room",
+  "x": 789,
+  "y": 2004,
+  "name": "Subject Librarians"
+ },
+ {
+  "id": "2204",
+  "kind": "room",
+  "x": 776,
+  "y": 1912,
+  "name": "Subject Librarians"
+ },
+ {
+  "id": "2205",
+  "kind": "room",
+  "x": 696,
+  "y": 1876,
+  "name": "Subject Librarians"
+ },
+ {
+  "id": "2206",
+  "kind": "room",
+  "x": 597,
+  "y": 1941,
+  "name": "Subject Librarians"
+ },
+ {
+  "id": "2207",
+  "kind": "room",
+  "x": 537,
+  "y": 1941,
+  "name": "Subject Librarians"
+ },
+ {
+  "id": "2208",
+  "kind": "room",
+  "x": 430,
+  "y": 1941,
+  "name": "Subject Librarians"
+ },
+ {
+  "id": "2209",
+  "kind": "room",
+  "x": 432,
+  "y": 1842,
+  "name": "Subject Librarians"
+ },
+ {
+  "id": "2210",
+  "kind": "room",
+  "x": 270,
+  "y": 2002,
+  "name": "Subject Librarians"
+ },
+ {
+  "id": "2211",
+  "kind": "room",
+  "x": 182,
+  "y": 2002,
+  "name": "Subject Librarians"
+ },
+ {
+  "id": "2212",
+  "kind": "room",
+  "x": 183,
+  "y": 1886,
+  "name": "Subject Librarians"
+ },
+ {
+  "id": "2303",
+  "kind": "room",
+  "x": 1260,
+  "y": 1526,
+  "name": "Writing Center Tutoring"
+ },
+ {
+  "id": "2304",
+  "kind": "room",
+  "x": 1259,
+  "y": 1674,
+  "name": "Writing Center Tutoring"
+ },
+ {
+  "id": "2400",
+  "kind": "room",
+  "x": 1436,
+  "y": 822,
+  "name": "Special Collections Research Center"
+ },
+ {
+  "id": "2404",
+  "kind": "room",
+  "x": 1326,
+  "y": 670
+ },
+ {
+  "id": "2500",
+  "kind": "room",
+  "x": 1281,
+  "y": 450,
+  "name": "Special Collections and Archives"
+ },
+ {
+  "id": "2604",
+  "kind": "room",
+  "x": 257,
+  "y": 1688,
+  "name": "Study Room"
+ },
+ {
+  "id": "2605",
+  "kind": "room",
+  "x": 436,
+  "y": 1740,
+  "name": "Study Room"
+ },
+ {
+  "id": "2608",
+  "kind": "room",
+  "x": 790,
+  "y": 1626,
+  "name": "Data Services"
+ },
+ {
+  "id": "2610",
+  "kind": "room",
+  "x": 875,
+  "y": 1563,
+  "name": "Study Room"
+ },
+ {
+  "id": "2611",
+  "kind": "room",
+  "x": 875,
+  "y": 1528,
+  "name": "Study Room"
+ },
+ {
+  "id": "2612",
+  "kind": "room",
+  "x": 874,
+  "y": 1332,
+  "name": "Study Room"
+ },
+ {
+  "id": "2F",
+  "kind": "room",
+  "x": 270,
+  "y": 1928,
+  "name": "Subject Librarians",
+  "area": true
+ },
+ {
+  "id": "2H",
+  "kind": "room",
+  "x": 1320,
+  "y": 963,
+  "name": "Special Collections and Archives Exhibition",
+  "area": true
+ },
+ {
+  "x": 255,
+  "y": 1767,
+  "id": "STAIR1",
+  "kind": "stair"
+ },
+ {
+  "x": 264,
+  "y": 390,
+  "id": "STAIR2",
+  "kind": "stair"
+ },
+ {
+  "x": 507,
+  "y": 1758,
+  "id": "STAIR3",
+  "kind": "stair"
+ },
+ {
+  "x": 633,
+  "y": 408,
+  "id": "STAIR4",
+  "kind": "stair"
+ },
+ {
+  "x": 879,
+  "y": 1392,
+  "id": "STAIR5",
+  "kind": "stair"
+ },
+ {
+  "x": 1092,
+  "y": 1152,
+  "id": "STAIR6",
+  "kind": "stair"
+ },
+ {
+  "x": 1350,
+  "y": 372,
+  "id": "STAIR7",
+  "kind": "stair"
+ },
+ {
+  "x": 1374,
+  "y": 1779,
+  "id": "STAIR8",
+  "kind": "stair"
+ }
+]
