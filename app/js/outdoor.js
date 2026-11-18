@@ -473,7 +473,7 @@ export class OutdoorMap {
     const toggle = document.createElement('button');
     toggle.className = 'layers-toggle';
     toggle.setAttribute('aria-expanded', open);
-    toggle.innerHTML = '<span>Layers</span><span class="chev" aria-hidden="true">▾</span>';
+    toggle.innerHTML = '<span>Legend</span><span class="chev" aria-hidden="true">▾</span>';
     toggle.onclick = () => {
       const now = bar.classList.toggle('collapsed');
       toggle.setAttribute('aria-expanded', !now);
