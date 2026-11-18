@@ -3,7 +3,7 @@
 import { loadBuilding, latLngToPlan, planToLatLng, metersBetween, roomTitle, floorName } from './building.js';
 import { simplify } from './router.js';
 import { IndoorRouting } from './routing.js';
-import { OutdoorMap, nearestOnRing, parkingTag, CATEGORIES } from './outdoor.js';
+import { OutdoorMap, nearestOnRing, parkingTag, CATEGORIES, buildingName } from './outdoor.js';
 import { WalkGraph } from './walk.js';
 import { walkingSteps } from './directions.js';
 import { ParkingSpot, ParkDetector, describe, ago, carHeading, CAR_SVG } from './parking.js';
@@ -15,6 +15,7 @@ import { startUsage, count, countBuilding, usageOn, setUsage } from './usage.js'
 const $ = (s) => document.querySelector(s);
 applyAppearance(); // the inline boot script already painted the base; this settles the rest
 const ARRIVE_RADIUS = 20;     // m from the entrance counts as "arrived"
+const ARRIVE_ACCURACY = 30;   // m: …but only with a fix at least this good. A ±150 m fix centred near the door isn't arrival.
 const DATA = window.AKADIAN_DATA || '/api/public'; // published maps, served read-only by the engine
 const GEO_KEY = 'akadian:geo'; // "yes" to location is remembered, so one grant covers later launches
 const params = new URLSearchParams(location.search);
@@ -123,14 +124,60 @@ try {
     if (!r.ok) throw new Error('The map server isn’t responding. Check your connection and try again.');
     return r.json();
   });
-  // one per indoor map (a building drawn in several pieces, like Torgersen Hall, shares one): keep the biggest piece
-  const byMap = new Map();
-  for (const x of campus.buildings.filter((y) => y.indoor)) {
-    if (!byMap.has(x.indoor) || x.ring.length > byMap.get(x.indoor).ring.length) byMap.set(x.indoor, x);
-  }
-  const shells = [...byMap.values()];
-  // the routing worker keeps the grid; a building that fails to load just isn't offered indoors
-  const loaded = await Promise.allSettled(shells.map((x) => loadBuilding(`${DATA}/${x.indoor}`, { grid: false })));
+} catch (e) {
+  bootError(e.message.includes('fetch') ? 'Can’t reach the map server. Check your connection and try again.' : e.message);
+  throw e;
+}
+// one per indoor map (a building drawn in several pieces, like Torgersen Hall, shares one): keep the biggest piece
+const byMap = new Map();
+for (const x of campus.buildings.filter((y) => y.indoor)) {
+  if (!byMap.has(x.indoor) || x.ring.length > byMap.get(x.indoor).ring.length) byMap.set(x.indoor, x);
+}
+const shells = [...byMap.values()];
+// Ask for every indoor building now, but don't wait for them before starting the map. The map needs only the
+// campus, so its tiles and fonts can download alongside the buildings instead of after them -- at GMU that is
+// ~160 KB of building data no longer standing in front of the first map frame. The routing worker keeps the
+// grid; a building that fails to load just isn't offered indoors.
+const buildingsArriving = Promise.allSettled(shells.map((x) => loadBuilding(`${DATA}/${x.indoor}`, { grid: false })));
+// A map with no size requests no tiles, and #outdoor starts hidden. The boot screen covers everything until
+// startup ends (and show() then settles which panel is visible), so it can be laid out underneath now.
+$('#outdoor').classList.remove('hidden');
+const outdoor = new OutdoorMap($('#map'), campus, {
+  campusId: CAMPUS,
+  data: DATA,
+  // one tap picks the building and routes to it; two taps go straight inside
+  onBuildingClick: (bld) => {
+    if (state.mode === 'park') return false; // saving a spot: taps set your position instead
+    chooseBuilding(bld);
+  },
+  onBuildingOpen: (bld) => {
+    if (state.mode === 'park') return false;
+    openBuilding(bld);
+  },
+  onAreaClick: (lot) => {
+    if (state.mode === 'park') return false;
+    chooseParking(lot);
+  },
+  onMapClick: (ll, bld) => {
+    if (!state.demo && state.user) return; // a real fix wins; before one arrives, a tap is better than nothing
+    if (bld) { // tapped a 3D building: stand at its middle
+      const n = bld.ring.length - 1;
+      ll = [bld.ring.slice(0, n).reduce((s, p) => s + p[1], 0) / n, bld.ring.slice(0, n).reduce((s, p) => s + p[0], 0) / n];
+    }
+    setUser(ll);
+  },
+  onStopClick: (stop) => chooseStop(stop),
+  // hover/tap card on a stop: the next bus from the timetable
+  stopNote: (stop) => {
+    if (!timetable) return '';
+    const now = nowIn(timetable.tz);
+    const g = timetable.departures(campus.transit.stops.indexOf(stop), now, 3)[0];
+    return g ? `Next: ${esc(g.ref)} to ${esc(g.to)}, ${fmtWait(g.deps[0].at, now.mins)}` : '';
+  },
+  onFoodClick: (f) => chooseFood(f),
+});
+try {
+  const loaded = await buildingsArriving;
   indoors = shells.map((bld, i) => loaded[i].value && { bld, b: loaded[i].value, name: loaded[i].value.building.name || bld.name })
     .filter(Boolean).sort((x, y) => y.b.rooms.length - x.b.rooms.length); // biggest first: it answers ?to= links without a building
   if (shells.length && !indoors.length) throw new Error('The indoor maps couldn’t be loaded. Check your connection and try again.');
@@ -677,7 +724,7 @@ function chooseRoom(room, { record = true } = {}) {
 }
 
 function chooseBuilding(bld) {
-  state.dest = { type: 'building', bld, title: bld.name || 'Building' };
+  state.dest = { type: 'building', bld, title: buildingName(bld) };
   state.ib = ibByBld.get(bld.id) || null;
   state.arrivedOnce = false;
   state.counted = false;
@@ -845,40 +892,7 @@ async function computeIndoor() {
 }
 
 // ---------- outdoor map (3D campus) ----------
-const outdoor = new OutdoorMap($('#map'), campus, {
-  campusId: CAMPUS,
-  data: DATA,
-  // one tap picks the building and routes to it; two taps go straight inside
-  onBuildingClick: (bld) => {
-    if (state.mode === 'park') return false; // saving a spot: taps set your position instead
-    chooseBuilding(bld);
-  },
-  onBuildingOpen: (bld) => {
-    if (state.mode === 'park') return false;
-    openBuilding(bld);
-  },
-  onAreaClick: (lot) => {
-    if (state.mode === 'park') return false;
-    chooseParking(lot);
-  },
-  onMapClick: (ll, bld) => {
-    if (!state.demo && state.user) return; // a real fix wins; before one arrives, a tap is better than nothing
-    if (bld) { // tapped a 3D building: stand at its middle
-      const n = bld.ring.length - 1;
-      ll = [bld.ring.slice(0, n).reduce((s, p) => s + p[1], 0) / n, bld.ring.slice(0, n).reduce((s, p) => s + p[0], 0) / n];
-    }
-    setUser(ll);
-  },
-  onStopClick: (stop) => chooseStop(stop),
-  // hover/tap card on a stop: the next bus from the timetable
-  stopNote: (stop) => {
-    if (!timetable) return '';
-    const now = nowIn(timetable.tz);
-    const g = timetable.departures(campus.transit.stops.indexOf(stop), now, 3)[0];
-    return g ? `Next: ${esc(g.ref)} to ${esc(g.to)}, ${fmtWait(g.deps[0].at, now.mins)}` : '';
-  },
-  onFoodClick: (f) => chooseFood(f),
-});
+// (the map is created at startup, alongside the building downloads: see `buildingsArriving`)
 
 // ---------- location ----------
 // Two passes at this, both from phones in the field.
@@ -1054,9 +1068,36 @@ function stopGps() {
   watchId = null;
 }
 
+// iOS pauses location for a home-screen app in the background and often doesn't resume the watch afterwards,
+// which left the dot frozen where you'd switched away. Coming back with nothing recent, start it again.
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState !== 'visible' || watchId === null) return;
+  if (lastFix && Date.now() - lastFix.at < 20000) return;
+  stopGps();
+  startGps();
+});
+
+// Fixes come from two sources -- a quick coarse one and the precise watch -- and not in order of quality. The
+// quick one can be a minute old and hundreds of metres out, and it used to land after a good GPS fix and drag
+// the dot away. A fix is taken only if it is newer than the one we have, and, while that one is recent, not
+// much worse than it. A poor fix on its own is still used (something beats nothing); it just can't overrule.
+let lastFix = null; // { t: position timestamp, acc: metres, at: when it arrived }
+function worthTaking(p) {
+  const acc = Number.isFinite(p.coords.accuracy) ? p.coords.accuracy : Infinity;
+  const t = p.timestamp || Date.now();
+  if (lastFix) {
+    if (t < lastFix.t) return false;
+    const recent = Date.now() - lastFix.at < 20000;
+    if (recent && acc > Math.max(lastFix.acc * 2.5, 60)) return false;
+  }
+  lastFix = { t, acc, at: Date.now() };
+  return true;
+}
+
 function onFix(p) {
   gpsFails = 0;
   clearTimeout(geoWatchdog);
+  if (!worthTaking(p)) return;
   rememberGeo('on'); // it worked, so later launches can go straight to it where the browser allows
   noteGeo('fix', { acc: p.coords.accuracy });
   if ($('#geoAsk')?.dataset.kind !== 'ask') $('#geoAsk')?.classList.add('hidden'); // a help card is now moot
@@ -1069,7 +1110,11 @@ function onFix(p) {
     return;
   }
   if (offCampus) offCampus = state.demo = false; // you've arrived: real GPS takes over from any tapped start
-  setGps(`Using your location (\u00b1${fmtDist(p.coords.accuracy)})`);
+  setGps(p.coords.accuracy > 150
+    ? `Approximate location (\u00b1${fmtDist(p.coords.accuracy)}) \u2014 GPS is still settling`
+    : `Using your location (\u00b1${fmtDist(p.coords.accuracy)})`);
+  state.userAcc = p.coords.accuracy;
+  outdoor.setAccuracy(ll, p.coords.accuracy);
   if (p.coords.heading != null && !Number.isNaN(p.coords.heading) && p.coords.speed > 0.7) nav.course = p.coords.heading;
   parkDetector.add({ lat: ll[0], lon: ll[1], speed: p.coords.speed, t: p.timestamp });
   setUser(ll);
@@ -1130,6 +1175,7 @@ function renderGeoInfo() {
 }
 
 function setUser(ll) {
+  if (!ll || state.demo) { state.userAcc = null; outdoor.setAccuracy(null); }
   const moved = !state.user || !ll || metersBetween(state.user, ll) > (nav.on ? 3 : 8);
   state.user = ll;
   outdoor.setUser(ll);
@@ -1171,7 +1217,8 @@ function pickTarget(refit = false) {
   $('#arrived').classList.remove('hidden');
   $('#arrived').textContent = `I'm at the ${e.name.split(' (')[0]} →`;
   const toDoor = state.user ? metersBetween(state.user, [e.lat, e.lon]) : Infinity;
-  if (toDoor < ARRIVE_RADIUS && !state.arrivedOnce && (!state.demo || nav.on)) {
+  const sure = state.demo || (state.userAcc ?? Infinity) <= ARRIVE_ACCURACY; // a tapped start is exact by definition
+  if (toDoor < ARRIVE_RADIUS && sure && !state.arrivedOnce && (!state.demo || nav.on)) {
     state.arrivedOnce = true; // GPS says you're at the door: hand over to the indoor view
     count('arrive');
     goIndoor();
@@ -1183,7 +1230,7 @@ function pickBuilding(refit) {
   const target = state.user ? nearestOnRing(bld.ring, state.user) : [bld.ring[0][1], bld.ring[0][0]];
   const out = state.user ? walkRoute(state.user, target) : null;
   outdoor.setPoints(state.ib ? state.ib.b.entrances.map((x) => ({ lat: x.lat, lon: x.lon, kind: 'entrance' })) : [{ lat: target[0], lon: target[1], kind: 'best' }]);
-  showWalk(out, `b:${bld.id}`, refit, bld.ring, bld.name || 'building');
+  showWalk(out, `b:${bld.id}`, refit, bld.ring, bld.name || buildingName(bld).toLowerCase());
   $('#outLeg').innerHTML = (out ? `<b class="total">About ${walkMins(out.meters)} min</b> ${fmtDist(out.meters)} walk<br>` : '')
     + `<span class="muted">${state.ib ? 'Search a room to get a route inside.' : 'Indoor map coming soon for this building.'}</span>`;
   $('#arrived').classList.toggle('hidden', !state.ib);
@@ -1370,7 +1417,7 @@ function updateNav({ instant = false } = {}) {
   const steps = state.steps || [], out = state.walkOut;
   const walkM = out?.meters || 0;
   const insideM = state.dest?.type === 'room' ? state.choice?.meters || 0 : 0;
-  const arrived = !out || walkM < ARRIVE_RADIUS;
+  const arrived = !out || (walkM < ARRIVE_RADIUS && (state.demo || (state.userAcc ?? Infinity) <= ARRIVE_ACCURACY));
   const mins = walkMins(walkM) + (insideM ? walkMins(insideM) : 0);
   const eta = new Date(Date.now() + mins * 60000).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
   const where = state.arriveAt || state.dest?.title || 'your destination';
@@ -1425,7 +1472,7 @@ const CAT_LABEL = { other: 'Campus services', ...Object.fromEntries(CATEGORIES.m
 
 function openBuilding(bld) {
   if (ibByBld.has(bld.id)) { // full indoor map: open it straight away
-    state.dest = { type: 'building', bld, title: bld.name || 'Building' };
+    state.dest = { type: 'building', bld, title: buildingName(bld) };
     state.ib = ibByBld.get(bld.id);
     state.url = `?view=${bld.id}`;
     setPlace({ kind: 'building', key: bld.id, title: state.dest.title, sub: 'Building' });
@@ -1438,7 +1485,7 @@ function openBuilding(bld) {
 
 async function showBuilding(bld) {
   if (!shell) {
-    $('#bldTitle').innerHTML = `${bld.name || 'Building'}<small>Loading 3D model…</small>`;
+    $('#bldTitle').innerHTML = `${buildingName(bld)}<small>Loading 3D model…</small>`;
     const { ShellView } = await loadShellView();
     shell ||= new ShellView($('#shell'));
   }
@@ -1455,7 +1502,7 @@ async function showBuilding(bld) {
   if (carHere) pins.push({ lat: spot.lat, lon: spot.lon, level: Number(spot.level) || 1, kind: 'car', heading: carHeading(bld.ring) });
   shell.show(bld, { color, deck, levels, pins });
 
-  $('#bldTitle').innerHTML = `${bld.name || 'Building'}<small>${CAT_LABEL[bld.cat] || 'Building'} · ${CAMPUS_SHORT}</small>`;
+  $('#bldTitle').innerHTML = `${buildingName(bld)}<small>${bld.name ? CAT_LABEL[bld.cat] || 'Building' : 'No name on the map'} · ${CAMPUS_SHORT}</small>`;
   $('#bldFacts').innerHTML = `<span class="cat" style="--c:${color}">${CAT_LABEL[bld.cat] || 'Building'}</span>
     <span>${levels} ${deck ? 'level' : 'floor'}${levels === 1 ? '' : 's'}</span><span>${fmtHeight(bld.h)} tall</span>
     <span>${deck ? 'Open-air deck' : 'Indoor map coming soon'}</span>`;

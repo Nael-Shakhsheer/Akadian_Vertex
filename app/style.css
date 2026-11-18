@@ -12,6 +12,8 @@
   --accent: #f0a04a;
   --accent-hi: #ffb866;
   --on-accent: #1b1d22;
+  --accent-fill: var(--accent);  /* text on the accent: set by themes.js to read at 4.5:1 */
+  --accent-text: var(--accent);  /* text in the accent: likewise */
   /* translucent panel backgrounds, so floating controls stay readable over the map on either base */
   --glass-1: var(--glass-1);
   --glass-2: var(--glass-2);
@@ -41,7 +43,7 @@ button { font: inherit; color: inherit; }
 .mark { width: 38px; height: 38px; flex: none; color: var(--text); }
 .mark-gem { fill: var(--accent); }
 .wordmark { font-family: Cinzel, Georgia, serif; font-weight: 600; text-transform: uppercase; letter-spacing: .12em; font-size: 17px; }
-.wordmark span { color: var(--accent); font-size: 11px; letter-spacing: .4em; margin-left: 4px; }
+.wordmark span { color: var(--accent-text); font-size: 11px; letter-spacing: .4em; margin-left: 4px; }
 .toggle {
   display: flex; align-items: center; gap: 8px; font-size: 14px; cursor: pointer; padding: 7px 12px;
   border: 1px solid var(--line); border-radius: 10px; background: var(--card);
@@ -130,7 +132,7 @@ body.picking .topbar, body.picking .panel { display: none !important; }
   font-size: 15px; font-weight: 700; cursor: pointer; border: 1px solid transparent; transition: filter .15s;
 }
 .btn:hover { filter: brightness(1.08); }
-.btn.primary { background: var(--accent); color: var(--on-accent); }
+.btn.primary { background: var(--accent-fill); color: var(--on-accent); }
 .btn.secondary { background: var(--card); color: var(--text); border-color: var(--line); }
 
 .steps { margin: 10px 0 0; padding: 0; list-style: none; counter-reset: s; }
@@ -142,15 +144,15 @@ body.picking .topbar, body.picking .panel { display: none !important; }
   content: counter(s); position: absolute; left: 0; top: 9px; width: 26px; height: 26px; border-radius: 8px;
   background: var(--raised); color: var(--text); font-size: 13px; font-weight: 700; display: grid; place-items: center;
 }
-.steps li.floorchange::before { background: var(--accent); color: var(--on-accent); }
+.steps li.floorchange::before { background: var(--accent-fill); color: var(--on-accent); }
 .steps li small { color: var(--muted); }
 .steps b { color: var(--accent-hi); font-weight: 600; }
 .steps.walk { margin-top: 14px; }
 .steps.walk li { cursor: pointer; border-radius: 10px; padding-right: 8px; transition: background .15s; }
 .steps.walk li:hover, .steps.walk li.on { background: var(--card); }
-.steps.walk li.on::before { background: var(--accent); color: var(--on-accent); }
+.steps.walk li.on::before { background: var(--accent-fill); color: var(--on-accent); }
 .steps.walk li.cross::before { content: "⇄"; }
-.steps.walk li.arrive::before { content: "●"; background: var(--accent); color: var(--on-accent); }
+.steps.walk li.arrive::before { content: "●"; background: var(--accent-fill); color: var(--on-accent); }
 
 .floorbar {
   position: absolute; right: 12px; top: 12px; display: flex; flex-direction: column; gap: 6px; z-index: 5;
@@ -162,7 +164,7 @@ body.picking .topbar, body.picking .panel { display: none !important; }
 }
 .floorbar button:hover { color: var(--text); background: var(--raised); }
 .floorbar button.route { color: var(--accent-hi); }
-.floorbar button.on { background: var(--accent); color: var(--on-accent); }
+.floorbar button.on { background: var(--accent-fill); color: var(--on-accent); }
 
 /* labels in the 3D scene */
 .tag {
@@ -170,13 +172,13 @@ body.picking .topbar, body.picking .panel { display: none !important; }
   background: var(--glass-2); border: 1px solid var(--line); border-radius: 10px; padding: 5px 9px;
   backdrop-filter: blur(6px); box-shadow: 0 6px 20px var(--shadow);
 }
-.tag b { color: var(--i-accent, var(--accent-hi)); margin-right: 4px; }
+.tag b { color: var(--accent-text); margin-right: 4px; }
 .tag small { display: block; color: var(--muted); font-weight: 400; font-size: 11px; }
 .tag.dest { border-color: var(--i-accent, var(--accent)); font-size: 13px; box-shadow: 0 0 18px #0000003d, 0 6px 20px var(--shadow); }
 .tag.start { border-color: var(--i-accent, var(--accent)); }
-.tag.hint { font-size: 11px; padding: 3px 7px; color: var(--i-accent, var(--accent-hi)); }
+.tag.hint { font-size: 11px; padding: 3px 7px; color: var(--accent-text); }
 .tag.hover { border-color: var(--i-hover, var(--accent-hi)); }
-.tag.floor-tag { background: transparent; border: 0; box-shadow: none; color: var(--i-accent, var(--accent)); font-size: 14px; letter-spacing: .5px; }
+.tag.floor-tag { background: transparent; border: 0; box-shadow: none; color: var(--accent-text); font-size: 14px; letter-spacing: .5px; }
 
 /* outdoor map (MapLibre): 3D campus over a flat dark basemap */
 .maplibregl-map { font-family: inherit; }
@@ -233,7 +235,7 @@ body.picking .topbar, body.picking .panel { display: none !important; }
 .mark.big .mark-gem { transform-box: fill-box; transform-origin: center; animation: gem 1.6s ease-in-out infinite; }
 @keyframes gem { 50% { transform: scale(1.25); } }
 .wordmark.big { font-size: 30px; }
-.wordmark.sub { font-size: 12px; letter-spacing: .5em; padding-left: .5em; color: var(--accent); }
+.wordmark.sub { font-size: 12px; letter-spacing: .5em; padding-left: .5em; color: var(--accent-text); }
 .boot-rule { width: 110px; height: 1px; background: var(--accent); }
 
 /* home */
@@ -357,7 +359,7 @@ button:focus:not(:focus-visible) { outline: none; }
   min-width: 44px; padding: 8px 12px; border-radius: 10px; border: 1px solid var(--line); background: var(--card);
   font-weight: 700; cursor: pointer;
 }
-.level-row button.on { background: var(--accent); color: var(--on-accent); border-color: var(--accent); }
+.level-row button.on { background: var(--accent-fill); color: var(--on-accent); border-color: var(--accent-fill); }
 .level-row .label { width: 100%; font-size: 14px; color: var(--muted); }
 .park-note { display: block; font-size: 14px; color: var(--muted); margin-top: 10px; }
 .park-note input {
@@ -454,7 +456,7 @@ button:focus:not(:focus-visible) { outline: none; }
   animation: nav-drop .35s cubic-bezier(.2, .8, .2, 1);
 }
 .nav-turn {
-  flex: none; width: 58px; height: 58px; border-radius: 14px; background: var(--accent); color: var(--on-accent);
+  flex: none; width: 58px; height: 58px; border-radius: 14px; background: var(--accent-fill); color: var(--on-accent);
   display: grid; place-items: center;
 }
 .nav-turn svg { width: 38px; height: 38px; fill: none; stroke: currentColor; stroke-width: 2.6; stroke-linecap: round; stroke-linejoin: round; transform: rotate(var(--turn, 0deg)); }
@@ -703,7 +705,7 @@ body.map-mode .topbar { display: none; }
 .install-steps li { display: flex; gap: 10px; align-items: flex-start; padding: 9px 0; counter-increment: none; }
 .install-steps li::before { content: none; }
 .install-steps .step-n {
-  flex: none; width: 24px; height: 24px; border-radius: 50%; background: var(--accent); color: var(--on-accent);
+  flex: none; width: 24px; height: 24px; border-radius: 50%; background: var(--accent-fill); color: var(--on-accent);
   display: grid; place-items: center; font-size: 13px; font-weight: 700;
 }
 .ios-glyph {
@@ -747,6 +749,28 @@ body.map-mode .topbar { display: none; }
 /* picker: nearest campus, or the one you are standing on */
 .campus-card .near {
   position: absolute; top: 8px; right: 10px; font-size: 11px; font-weight: 700; letter-spacing: .02em;
-  color: var(--on-accent); background: var(--accent); border-radius: 999px; padding: 2px 9px;
+  color: var(--on-accent); background: var(--accent-fill); border-radius: 999px; padding: 2px 9px;
   box-shadow: 0 1px 4px color-mix(in srgb, var(--accent) 45%, transparent);
+}
+
+/* ---------- touch targets ----------
+   Apple's minimum is 44 pt. On a touch screen, a control drawn smaller than that gets either a real 44 px box,
+   where the layout has room, or an invisible ring that widens where a finger can land without changing what is
+   drawn. With a mouse (a precise pointer) nothing here applies, so the desktop layout is exactly as it was. */
+@media (pointer: coarse) {
+  .icon-btn { width: 44px; height: 44px; }                       /* settings, back, clear: the bar is 52 px tall */
+  .maplibregl-ctrl-group button { width: 44px; height: 44px; }  /* zoom and compass were 29 px */
+  .map-fab { min-height: 44px; }
+  .floorbar button { height: 40px; }                             /* a stacked rail: grown, not ringed, so rings can't overlap */
+  .chip, .back, .sheet-close, .layers-toggle, .ghost-sm, .link, .toggle { position: relative; }
+  .chip::after, .back::after, .sheet-close::after, .layers-toggle::after, .ghost-sm::after, .link::after, .toggle::after {
+    content: ""; position: absolute;
+  }
+  .chip::after { inset: -4px -2px; }          /* 36 -> 44; the row's own padding leaves room, so nothing is clipped */
+  .back::after { inset: -7px -3px; }          /* 31 -> 45 */
+  .sheet-close::after { inset: -5px; }        /* 34 -> 44 */
+  .layers-toggle::after { inset: -7px -3px; } /* 30 -> 44 */
+  .ghost-sm::after { inset: -6px 0; }         /* Save / Share, 33 -> 45 */
+  .link::after { inset: -13px -8px; }         /* "Use my location", "Clear": 19 -> 45 */
+  .toggle::after { inset: -9px -2px; }        /* the step-free switch, 27 -> 45 */
 }

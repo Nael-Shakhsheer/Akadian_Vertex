@@ -41,6 +41,11 @@ export const CATEGORIES = [
   { id: 'transit', label: 'Bus & shuttle', color: '#2dd4bf' },
   { id: 'food', label: 'Food & coffee', color: '#ff7ab6' },
 ];
+// What to call a building OpenStreetMap has no name for. 39% of GMU's buildings and 45% of Virginia Tech's have
+// none (re-checked against OSM, 18 Nov 2026), and "Building" says nothing; their category, at least, is known.
+const UNNAMED = { academic: 'Academic building', dorm: 'Residence hall', athletics: 'Athletics building', parking: 'Parking garage' };
+export const buildingName = (b) => b?.name || UNNAMED[b?.cat] || 'Building';
+
 const TRANSIT = '#2dd4bf';
 const PARK_COLOR = CATEGORIES.find((c) => c.id === 'parking').color;
 // A marker's shadow: soft, small, and always on the ground.
@@ -130,6 +135,7 @@ export class OutdoorMap {
           areas: { type: 'geojson', data: areas },
           labels: { type: 'geojson', data: labelPoints(campus) },
           route: { type: 'geojson', data: empty() },
+          'me-acc': { type: 'geojson', data: empty() }, // how sure the location is: a circle of its stated accuracy
           points: { type: 'geojson', data: empty() },
           focus: { type: 'geojson', data: empty() },
           transitLines: { type: 'geojson', data: transitLines(campus) },
@@ -180,6 +186,9 @@ export class OutdoorMap {
           { id: 'bld-ghost', type: 'fill-extrusion', source: 'buildings', filter: ['==', ['get', 'i'], -1],
             paint: { 'fill-extrusion-height': ['get', 'h'], 'fill-extrusion-base': 0, 'fill-extrusion-color': '#4da3ff',
               'fill-extrusion-opacity': 0.2, 'fill-extrusion-vertical-gradient': true } },
+          // drawn flat under the route: a tight ring for a good fix, a wide pale one while GPS is still settling
+          { id: 'me-acc-fill', type: 'fill', source: 'me-acc', paint: { 'fill-color': ACCENT, 'fill-opacity': 0.1 } },
+          { id: 'me-acc-line', type: 'line', source: 'me-acc', paint: { 'line-color': ACCENT, 'line-opacity': 0.35, 'line-width': 1 } },
           { id: 'route-glow', type: 'line', source: 'route', layout: { 'line-cap': 'round', 'line-join': 'round' },
             paint: { 'line-color': ACCENT, 'line-width': ['interpolate', ['linear'], ['zoom'], 15, 10, 19, 22], 'line-blur': 8, 'line-opacity': 0.5 } },
           { id: 'route', type: 'line', source: 'route', layout: { 'line-cap': 'round', 'line-join': 'round' },
@@ -279,7 +288,8 @@ export class OutdoorMap {
         this.setHover(f.id);
         this.map.getCanvas().style.cursor = 'pointer';
         const b = campus.buildings[f.id];
-        this.popup.setLngLat(e.lngLat).setHTML(`<b>${b.name || 'Building'}</b>${b.indoor ? '<small>3D indoor map available</small>' : ''}`).addTo(this.map);
+        this.popup.setLngLat(e.lngLat).setHTML(`<b>${buildingName(b)}</b>${b.indoor ? '<small>3D indoor map available</small>'
+          : b.name ? '' : '<small>No name on the map</small>'}`).addTo(this.map);
       });
       this.map.on('mouseleave', layer, () => { this.setHover(null); this.map.getCanvas().style.cursor = ''; this.popup.remove(); });
     }
@@ -533,6 +543,31 @@ export class OutdoorMap {
     this.me.setLngLat([ll[1], ll[0]]).addTo(this.map);
   }
 
+  /** The circle of the fix's stated accuracy (metres) round you; null removes it. Under 6 m it would only hide
+   *  behind the dot, so it isn't drawn. */
+  setAccuracy(ll, metres = 0) {
+    const src = this.map.getSource('me-acc');
+    // Location starts before the map has finished loading, so the first fix can arrive before this layer
+    // exists. Keep the latest and draw it when the map is ready, rather than dropping it.
+    this.lastAcc = [ll, metres];
+    if (!src) {
+      if (!this.accPending) {
+        this.accPending = this.ready.then(() => {
+          this.accPending = null;
+          if (this.map.getSource('me-acc')) this.setAccuracy(...this.lastAcc); // once only: never a retry loop
+        });
+      }
+      return;
+    }
+    if (!ll || !(metres >= 6)) return void src.setData(empty());
+    const [lat, lon] = ll, k = Math.cos((lat * Math.PI) / 180), ring = [];
+    for (let i = 0; i <= 48; i += 1) {
+      const a = (i / 48) * 2 * Math.PI;
+      ring.push([lon + (metres * Math.cos(a)) / (111320 * k), lat + (metres * Math.sin(a)) / 111320]);
+    }
+    src.setData({ type: 'Feature', properties: {}, geometry: { type: 'Polygon', coordinates: [ring] } });
+  }
+
   // points: [{lat, lon, kind: 'best'|'entrance'}]
   setPoints(points) {
     this.map.getSource('points')?.setData({
@@ -600,6 +635,8 @@ export class OutdoorMap {
     set('campus-fill', 'fill-color', hex);
     set('campus-line', 'line-color', hex);
     set('route-glow', 'line-color', hex);   // the soft halo under the walking route
+    set('me-acc-fill', 'fill-color', hex);  // the accuracy circle round you
+    set('me-acc-line', 'line-color', hex);
     set('route', 'line-color', hi);         // the bright line you follow
     set('focus-halo', 'circle-color', hi);
     set('car-glow', 'circle-color', hex);     // the saved parking spot follows the colour too

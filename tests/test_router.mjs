@@ -91,9 +91,14 @@ assert.ok(stepFreeChecked > 5, 'expected step-free routes to other floors');
 // the public API still returns usable legs
 const legs = router.route(entrances[0], router.snap(targets[0].floor, targets[0].label));
 assert.ok(legs?.length && legs.some((l) => l.pts?.length), 'route() should return drawable legs');
+// "27% more cells" rather than "-27% fewer": say which way the difference goes.
+const cmp = (bi, one, what) => {
+  const pct = Math.round(Math.abs(bi / one - 1) * 100);
+  return what === 'cells' ? `${pct}% ${bi > one ? 'more' : 'fewer'} cells` : `${pct}% ${bi > one ? 'slower' : 'faster'}`;
+};
 assert.ok(router.stats.mode.includes('one-way'), 'route() defaults to the one-way search: it expands fewer cells here');
 
 console.log(`router: ok — ${checked} routes, both searches agree to the cent`);
 console.log(`  one-way        ${oneCells.toLocaleString()} cells expanded, ${oneMs.toFixed(0)} ms`);
 console.log(`  bidirectional  ${biCells.toLocaleString()} cells expanded, ${biMs.toFixed(0)} ms`
-  + `  (${(100 - (biCells / oneCells) * 100).toFixed(0)}% fewer cells, ${(100 - (biMs / oneMs) * 100).toFixed(0)}% less time)`);
+  + `  (${cmp(biCells, oneCells, 'cells')}, ${cmp(biMs, oneMs, 'time')})`);

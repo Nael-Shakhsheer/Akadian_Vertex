@@ -34,6 +34,26 @@ export function mix(a, b, t) {
 }
 const int = (h) => parseInt(h.slice(1), 16);
 
+// WCAG contrast, so a colour can be checked rather than eyeballed.
+const lin = (c) => { c /= 255; return c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4; };
+const luminance = (h) => { const [r, g, b] = rgb(h); return 0.2126 * lin(r) + 0.7152 * lin(g) + 0.0722 * lin(b); };
+export function contrast(a, b) {
+  const x = luminance(a), y = luminance(b);
+  return (Math.max(x, y) + 0.05) / (Math.min(x, y) + 0.05);
+}
+/**
+ * The accent, moved toward `toward` only as far as it takes to read at `ratio` against `on`. Text this size
+ * needs 4.5:1. Of the twelve base/accent pairs only the light orange falls short (3.88:1 under white text),
+ * and it moves about a tenth of the way to black; every other pair comes back unchanged.
+ */
+export function legible(hex, on, toward, ratio = 4.5) {
+  for (let t = 0; t <= 1.0001; t += 0.02) {
+    const c = mix(hex, toward, t);
+    if (contrast(c, on) >= ratio) return c;
+  }
+  return toward;
+}
+
 // ---------- what is set ----------
 export function loadAppearance() {
   try {
@@ -83,7 +103,13 @@ export function applyAppearance(a = loadAppearance()) {
   for (const [k, v] of Object.entries(SURFACES[r.base])) root.style.setProperty(k, v);
   root.style.setProperty('--accent', r.hex);
   root.style.setProperty('--accent-hi', r.base === 'dark' ? mix(r.hex, '#ffffff', 0.3) : mix(r.hex, '#000000', 0.2));
-  root.style.setProperty('--on-accent', r.base === 'dark' ? '#1b1d22' : '#ffffff');
+  const onAccent = r.base === 'dark' ? '#1b1d22' : '#ffffff';
+  root.style.setProperty('--on-accent', onAccent);
+  // The vibrant accent stays for lines, routes, borders and marks (they need 3:1, and have it). Anything that
+  // puts text on the accent, or sets text in it, uses these, which are guaranteed to read.
+  const away = r.base === 'dark' ? '#ffffff' : '#000000';
+  root.style.setProperty('--accent-fill', legible(r.hex, onAccent, away));
+  root.style.setProperty('--accent-text', legible(r.hex, SURFACES[r.base][r.base === 'dark' ? '--card' : '--surface'], away));
   root.style.setProperty('color-scheme', r.base);
   document.querySelector('meta[name="theme-color"]')?.setAttribute('content', SURFACES[r.base]['--bg']);
   applyTheme(a);

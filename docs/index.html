@@ -57,6 +57,32 @@
   <link rel="apple-touch-startup-image" href="splash/2388x1668.png" media="(device-width: 1194px) and (device-height: 834px) and (-webkit-device-pixel-ratio: 2) and (orientation: landscape)">
   <link rel="apple-touch-startup-image" href="splash/2048x2732.png" media="(device-width: 1024px) and (device-height: 1366px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait)">
   <link rel="apple-touch-startup-image" href="splash/2732x2048.png" media="(device-width: 1366px) and (device-height: 1024px) and (-webkit-device-pixel-ratio: 2) and (orientation: landscape)">
+  <!-- Start the campus map downloading now, alongside the scripts, instead of after main.js has loaded and run.
+       Above the stylesheets on purpose: an inline script waits for any stylesheet before it to arrive. The URL
+       is built exactly as main.js builds it, so the fetch there picks this one up instead of asking again. -->
+  <script>
+    (function () {
+      var q = new URLSearchParams(location.search);
+      if (!location.search.replace('?', '')) return; // a plain launch shows the campus picker first
+      var l = document.createElement('link');
+      l.rel = 'preload'; l.as = 'fetch'; l.crossOrigin = 'anonymous';
+      l.href = (window.AKADIAN_DATA || '/api/public') + '/campus/' + encodeURIComponent(q.get('campus') || 'gmu') + '.json';
+      document.head.appendChild(l);
+    })();
+  </script>
+  <!-- main.js's imports, fetched in the same round as main.js rather than one round after it -->
+  <link rel="modulepreload" href="js/main.js">
+  <link rel="modulepreload" href="js/building.js">
+  <link rel="modulepreload" href="js/router.js">
+  <link rel="modulepreload" href="js/routing.js">
+  <link rel="modulepreload" href="js/outdoor.js">
+  <link rel="modulepreload" href="js/walk.js">
+  <link rel="modulepreload" href="js/directions.js">
+  <link rel="modulepreload" href="js/parking.js">
+  <link rel="modulepreload" href="js/units.js">
+  <link rel="modulepreload" href="js/buses.js">
+  <link rel="modulepreload" href="js/themes.js">
+  <link rel="modulepreload" href="js/usage.js">
   <link rel="stylesheet" href="vendor/maplibre-gl/maplibre-gl.css">
   <link rel="stylesheet" href="style.css">
   <script>
