@@ -881,24 +881,30 @@ const outdoor = new OutdoorMap($('#map'), campus, {
 });
 
 // ---------- location ----------
-// Three faults here all looked the same from outside — no blue dot, on any campus, forever.
+// Two passes at this, both from phones in the field.
 //
-//  * watchPosition reports an ordinary timeout through its error callback, and this used to tear the watch
-//    down and switch to demo mode on the first one. A phone inside a building routinely needs longer than
-//    the old 15s to get its first high-accuracy fix, so the app gave up while the hardware was still trying.
-//    Worse, demo mode then blocked every later attempt, so it stayed given up until the page was reloaded.
-//  * On a home-screen launch, iOS has its permission sheet on screen while that clock runs. Read it, think,
-//    tap Allow at twenty seconds, and the watch had already been thrown away. Asking from a tap instead
-//    starts the clock after the answer rather than during it.
-//  * "On campus" was a 3 km circle around one building — the Johnson Center, or Torgersen Hall at Virginia
-//    Tech, which sits at the edge of a campus 2.8 km across. Stand far enough from that one building and the
-//    app decided you had left campus and refused to place you. The map's own tile bounds are the honest
-//    test, because that is exactly the area it has the tiles to draw you in.
+// The first: watchPosition reports an ordinary timeout through its error callback, and that used to tear
+// the watch down for good. A phone indoors often needs longer than 15s for a first fix, so the app gave up
+// while the hardware was still trying. Only a refused permission stops the watch now.
 //
-// So: only a refused permission stops the watch. A timeout or a momentary "position unavailable" is normal
-// indoors and usually clears by itself, so those leave it running and just say what is happening.
-const geoWanted = () => { try { return localStorage.getItem(GEO_KEY) === 'on'; } catch { return false; } };
-const rememberGeo = (on) => { try { localStorage.setItem(GEO_KEY, on ? 'on' : 'off'); } catch {} };
+// The second, from an iPhone home-screen app: our own card appeared, but iOS's never did, and still no
+// location. Two documented WebKit behaviours produce exactly that (Apple developer forums 751189, 694999):
+//
+//  * Once location has been refused for a site, Safari refuses every later request instantly and without
+//    asking -- while navigator.permissions.query goes on answering "prompt". So the app offered "Use my
+//    location", iOS said no without a word, and next launch the app believed it could ask again. A refusal
+//    we have seen ourselves is therefore trusted over anything the browser claims.
+//  * In a home-screen app the system prompt can fail to appear at all, and the call then never returns,
+//    neither success nor error. With no timeout on the watch, that read "Finding your location…" for ever.
+//    A watchdog now notices silence and says so, while leaving the watch running in case it recovers.
+//
+// Either way the person is shown, prominently, where the setting that blocks it actually lives, and
+// Settings › Location shows what this phone last reported, so the next report can be read rather than
+// guessed at.
+const GEO_SILENCE = 12000; // ms with no answer of any kind before saying so
+const storedGeo = () => { try { return localStorage.getItem(GEO_KEY); } catch { return null; } };
+const rememberGeo = (v) => { try { localStorage.setItem(GEO_KEY, v); } catch {} }; // 'on' | 'off' | 'denied'
+
 // [w, s, e, n] of the downloaded map area: where the app has tiles, and so where it can honestly draw you.
 const inBounds = ([lat, lon]) => {
   const b = campus.bounds;
@@ -914,13 +920,22 @@ function setGps(text, { retry = false } = {}) {
   $('#gpsStatus2').textContent = text;
   $('#gpsRetry').classList.toggle('hidden', !retry);
 }
-$('#gpsRetry').onclick = () => { rememberGeo(true); startGps(); };
+$('#gpsRetry').onclick = () => startGps();
 
 let watchId = null;
 let gpsFails = 0;
+let geoWatchdog = null;
 let offCampus = false; // GPS works but you're far away: tap the map for a start, and keep watching for when you arrive
 
-/** What the browser would do if asked. Older iOS Safari has no permissions API, hence 'unknown'. */
+// What this phone has actually said, for Settings › Location. Nothing here leaves the device.
+const geoLog = { reported: null, asked: 0, last: null };
+const CODE = { 1: 'denied', 2: 'unavailable', 3: 'timeout' };
+function noteGeo(kind, extra = {}) {
+  geoLog.last = { kind, at: Date.now(), ...extra };
+  renderGeoInfo();
+}
+
+/** What the browser says it would do. On iPhone this can say "prompt" after a refusal; see above. */
 async function geoPermission() {
   try {
     return (await navigator.permissions.query({ name: 'geolocation' })).state;
@@ -929,34 +944,86 @@ async function geoPermission() {
   }
 }
 
-/** At boot: go straight to it if that is already settled, otherwise ask in our own words first. */
+/**
+ * At boot. Already allowed: start, no card ("one yes covers every launch"). Otherwise our card each launch,
+ * so iOS's own prompt always comes from a tap, which is what a home-screen app needs. A refusal we have
+ * seen goes straight to the instructions instead of offering a button that cannot work.
+ */
 async function initLocation() {
   if (watchId !== null) return;
-  if (!('geolocation' in navigator)) return demoMode('Location isn’t available on this device.');
+  if (!('geolocation' in navigator)) return demoMode('Location isn\u2019t available on this device.');
+  if (!window.isSecureContext) return demoMode('Location needs a secure (https) connection.');
   const p = await geoPermission();
-  if (p === 'granted' || (p === 'unknown' && geoWanted())) return startGps();
-  if (p === 'denied') return locationBlocked();
+  geoLog.reported = p;
+  renderGeoInfo();
+  if (p === 'granted') return startGps();
+  if (p === 'denied' || storedGeo() === 'denied') return showGeoHelp('denied');
   askLocation();
 }
 
-// Our own card first, so the browser's sheet comes up from a tap. That is both more reliable on a
-// home-screen iPhone and fairer: it says why before the system asks whether.
+// ---- the card: asks first, and explains when the phone says no ----
+const IOS_STEPS = `<ol class="geo-steps">
+  <li><b>Settings \u203a Privacy &amp; Security \u203a Location Services</b> \u2014 on, then
+    <b>Safari Websites</b> \u203a <b>While Using the App</b>.</li>
+  <li><b>Settings \u203a Apps \u203a Safari \u203a Location</b> \u2014 <b>Ask</b> or <b>Allow</b>, not Deny.
+    (Older iPhones: Settings \u203a Safari.)</li>
+  <li>Swipe Vertex away to close it fully, then open it again.</li></ol>`;
+const WEB_STEPS = `<p>Allow location for this site from the lock icon beside the address, or in your browser\u2019s
+  site settings, then tap Try again.</p>`;
+
+function fillGeoCard(kind) {
+  const card = $('#geoAsk');
+  if (!card) return null;
+  card.dataset.kind = kind;
+  const title = $('#geoAskTitle'), body = $('#geoAskText'), yes = $('#geoYes'), no = $('#geoNo');
+  if (kind === 'ask') {
+    title.textContent = 'Show where you are';
+    body.innerHTML = '<p>Directions start from where you\u2019re standing, so the map needs your location. '
+      + 'It stays on your phone \u2014 nothing about where you go is sent anywhere.</p>';
+    yes.textContent = 'Use my location';
+    no.textContent = 'Not now';
+  } else {
+    title.textContent = kind === 'silent' ? 'Your phone hasn\u2019t answered' : 'Location is off for Vertex';
+    const why = kind === 'silent'
+      ? (isIOS ? '<p>No location prompt came up. On iPhone that usually means location is switched off for '
+          + 'web apps. If a prompt appeared in Safari instead, answer it there.</p>'
+        : '<p>The browser hasn\u2019t answered the location request.</p>')
+      : (isIOS ? '<p>Your iPhone is refusing location for this app without asking. To turn it on:</p>'
+        : '<p>This browser is refusing location for this site without asking.</p>');
+    body.innerHTML = why + (isIOS ? IOS_STEPS : WEB_STEPS);
+    yes.textContent = 'Try again';
+    no.textContent = 'Use the map';
+  }
+  return card;
+}
+
 function askLocation() {
-  $('#geoAsk')?.classList.remove('hidden');
+  fillGeoCard('ask')?.classList.remove('hidden');
   setGps('Turn on location to route you from where you are.', { retry: true });
 }
-$('#geoYes')?.addEventListener('click', () => { $('#geoAsk')?.classList.add('hidden'); rememberGeo(true); startGps(); });
+
+function showGeoHelp(kind) {
+  fillGeoCard(kind)?.classList.remove('hidden');
+  setGps(kind === 'silent' ? 'Waiting for your phone to share its location.' : 'Location is turned off for this app.',
+    { retry: true });
+}
+
+$('#geoYes')?.addEventListener('click', () => startGps());
 $('#geoNo')?.addEventListener('click', () => {
+  const kind = $('#geoAsk')?.dataset.kind;
   $('#geoAsk')?.classList.add('hidden');
-  rememberGeo(false);
-  demoMode('No location.');
+  if (kind === 'ask') rememberGeo('off'); // "not now": asked again next launch, as it should be
+  demoMode(kind === 'ask' ? 'No location.' : 'Location is off.');
 });
 
-function locationBlocked() {
-  rememberGeo(false);
-  demoMode(isIOS
-    ? 'Location is blocked. Turn it on in Settings › Privacy & Security › Location Services.'
-    : 'Location is blocked for this site. Turn it on in your browser’s site settings.');
+function locationBlocked(err) {
+  stopGps();
+  clearTimeout(geoWatchdog);
+  noteGeo('denied', { msg: err?.message });
+  rememberGeo('denied');
+  state.demo = true;
+  showGeoHelp('denied');
+  if (state.mode === 'park') updateParkSheet();
 }
 
 function startGps() {
@@ -964,10 +1031,19 @@ function startGps() {
   state.demo = false;
   if (watchId !== null) return;
   gpsFails = 0;
-  setGps('Finding your location…');
-  // A coarse fix from wi-fi or the network puts you on the map in a second or two while the precise one is
-  // still coming, and maximumAge lets it reuse a fix something else on the phone has just taken.
-  navigator.geolocation.getCurrentPosition(onFix, () => {},
+  geoLog.asked = Date.now();
+  setGps('Finding your location\u2026');
+  // Silence is its own failure in a home-screen app: the prompt can fail to show, and then nothing ever
+  // comes back. Say so, but keep the watch: it costs nothing and may still recover.
+  clearTimeout(geoWatchdog);
+  geoWatchdog = setTimeout(() => {
+    if (geoLog.last && geoLog.last.at >= geoLog.asked) return; // something answered
+    noteGeo('silent');
+    if (!state.user) showGeoHelp('silent');
+  }, GEO_SILENCE);
+  // A coarse fix from wi-fi puts you on the map in a second or two while the precise one is still coming,
+  // and maximumAge lets it reuse a fix something else on the phone has just taken.
+  navigator.geolocation.getCurrentPosition(onFix, onQuickError,
     { enableHighAccuracy: false, maximumAge: 60000, timeout: 10000 });
   // No timeout on the watch itself: one that keeps trying is worth more than one that gives up at 15s.
   watchId = navigator.geolocation.watchPosition(onFix, onGpsError, { enableHighAccuracy: true, maximumAge: 5000 });
@@ -980,40 +1056,77 @@ function stopGps() {
 
 function onFix(p) {
   gpsFails = 0;
-  rememberGeo(true); // it worked, so later launches can go straight to it
+  clearTimeout(geoWatchdog);
+  rememberGeo('on'); // it worked, so later launches can go straight to it where the browser allows
+  noteGeo('fix', { acc: p.coords.accuracy });
+  if ($('#geoAsk')?.dataset.kind !== 'ask') $('#geoAsk')?.classList.add('hidden'); // a help card is now moot
   const ll = [p.coords.latitude, p.coords.longitude];
   if (!inBounds(ll)) {
     if (!offCampus && state.user) setUser(null); // just left campus: drop the last on-campus fix too
     offCampus = state.demo = true; // the map doesn't reach that far, so never draw you there (or anywhere)
-    setGps(`You’re ${fmtDist(fromCampus(ll))} from campus. Tap the map to choose your start.`);
+    setGps(`You\u2019re ${fmtDist(fromCampus(ll))} from campus. Tap the map to choose your start.`);
     if (state.mode === 'park') updateParkSheet();
     return;
   }
   if (offCampus) offCampus = state.demo = false; // you've arrived: real GPS takes over from any tapped start
-  setGps(`Using your location (±${fmtDist(p.coords.accuracy)})`);
+  setGps(`Using your location (\u00b1${fmtDist(p.coords.accuracy)})`);
   if (p.coords.heading != null && !Number.isNaN(p.coords.heading) && p.coords.speed > 0.7) nav.course = p.coords.heading;
   parkDetector.add({ lat: ll[0], lon: ll[1], speed: p.coords.speed, t: p.timestamp });
   setUser(ll);
 }
 
+// The quick coarse fix can be the first to hear a refusal, so it must not be swallowed.
+function onQuickError(err) {
+  if (err.code === 1) return locationBlocked(err);
+  noteGeo(CODE[err.code] || 'error', { msg: err.message });
+}
+
 function onGpsError(err) {
-  if (err.code === 1) { // PERMISSION_DENIED: the only one there is no point waiting out
-    stopGps();
-    locationBlocked();
-    return;
-  }
+  if (err.code === 1) return locationBlocked(err); // the only one there is no point waiting out
+  noteGeo(CODE[err.code] || 'error', { msg: err.message });
   gpsFails += 1;
   if (state.user) return; // we already have somewhere to put you; the watch carries on regardless
   setGps(gpsFails > 2
-    ? 'Still looking for you — tap the map to pick your start in the meantime.'
-    : 'Finding your location…', { retry: gpsFails > 2 });
+    ? 'Still looking for you \u2014 tap the map to pick your start in the meantime.'
+    : 'Finding your location\u2026', { retry: gpsFails > 2 });
 }
 
 function demoMode(reason) {
   stopGps();
+  clearTimeout(geoWatchdog);
   state.demo = true;
   setGps(`${reason} Tap the map to choose your start.`, { retry: true });
   if (state.mode === 'park') updateParkSheet();
+}
+
+// ---- Settings › Location: what this phone has actually said ----
+const GEO_SAID = {
+  fix: (l) => `Shared, \u00b1${fmtDist(l.acc)}`,
+  denied: () => 'Refused (permission denied)',
+  unavailable: () => 'Couldn\u2019t get a position',
+  timeout: () => 'Timed out waiting for a fix',
+  silent: () => `No answer at all after ${GEO_SILENCE / 1000} s`,
+  error: () => 'Error',
+};
+function renderGeoInfo() {
+  const box = $('#geoInfo');
+  if (!box) return;
+  const l = geoLog.last;
+  const clock = (ms) => new Date(ms).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit', second: '2-digit' });
+  const ios = navigator.userAgent.match(/OS (\d+)_(\d+)/);
+  const rows = [
+    ['Running as', installed() ? 'Home-screen app' : 'Browser tab'],
+    ['Device', isIOS ? `iPhone / iPad${ios ? `, iOS ${ios[1]}.${ios[2]}` : ''}` : 'Not iOS'],
+    ['Secure connection', window.isSecureContext ? 'Yes' : 'No \u2014 location will not work'],
+    ['Browser reports', `${geoLog.reported || 'not checked yet'}${isIOS && geoLog.reported === 'prompt'
+      ? ' (iPhones say this even when blocked)' : ''}`],
+    ['Phone last said', l ? `${GEO_SAID[l.kind](l)} \u00b7 ${clock(l.at)}` : 'Not asked yet'],
+    ...(l?.msg ? [['Its message', l.msg]] : []),
+    ['Remembered', storedGeo() || 'nothing'],
+  ];
+  box.innerHTML = `<dl class="geo-dl">${rows.map(([k, v]) => `<dt>${esc(k)}</dt><dd>${esc(v)}</dd>`).join('')}</dl>
+    <button class="btn secondary" id="geoInfoRetry">Try location again</button>`;
+  $('#geoInfoRetry').onclick = () => { stopGps(); closeSettings(); startGps(); };
 }
 
 function setUser(ll) {
@@ -1747,6 +1860,7 @@ function openSettings() {
   renderHistory();
   renderInstall();
   renderUsage();
+  renderGeoInfo();
   $('#settings').classList.remove('hidden');
   $('#settingsBack').focus({ preventScroll: true });
 }

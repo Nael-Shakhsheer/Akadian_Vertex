@@ -728,8 +728,18 @@ body.map-mode .topbar { display: none; }
 }
 .geo-ask.hidden { display: none; }
 .geo-mark { width: 22px; height: 22px; fill: var(--accent); margin-top: 2px; }
-.geo-text b { display: block; font-size: 15px; color: var(--text); }
-.geo-text small { display: block; margin-top: 4px; color: var(--muted); font-size: 12.5px; line-height: 1.45; }
+.geo-text > b { display: block; font-size: 15px; color: var(--text); }
+.geo-body { margin-top: 4px; color: var(--muted); font-size: 12.5px; line-height: 1.45; }
+.geo-body p { margin: 0 0 6px; }
+.geo-steps { margin: 4px 0 2px; padding-left: 18px; }
+.geo-steps li { margin: 0 0 5px; }
+.geo-steps b { display: inline; font-size: inherit; color: var(--text); font-weight: 600; }
+.geo-ask[data-kind="denied"], .geo-ask[data-kind="silent"] { border-color: var(--accent); }
+
+/* Settings › Location: what the phone said */
+.geo-dl { display: grid; grid-template-columns: auto 1fr; gap: 5px 14px; margin: 6px 0 12px; font-size: 13px; }
+.geo-dl dt { color: var(--muted); }
+.geo-dl dd { margin: 0; color: var(--text); overflow-wrap: anywhere; }
 .geo-row { grid-column: 2; display: flex; gap: 8px; margin-top: 4px; }
 .geo-row .btn { flex: 1; }
 @media (max-width: 380px) { .geo-ask { grid-template-columns: 1fr; } .geo-row { grid-column: 1; } }

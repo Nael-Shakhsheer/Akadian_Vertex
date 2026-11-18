@@ -156,6 +156,10 @@
       <h3 class="set-head">History <button id="clearHistory" class="link set-clear">Clear</button></h3>
       <ul id="historyList" class="results"></ul>
       <p class="muted small-print">Everything here is kept on this device only.</p>
+      <h3 class="set-head">Location</h3>
+      <p class="muted small-print">What this phone last reported. If location isn't working, a screenshot of
+        this says why.</p>
+      <div id="geoInfo" class="geo-info"></div>
       <h3 class="set-head">Anonymous usage</h3>
       <label class="set-toggle"><input type="checkbox" id="usageToggle">
         <span class="txt">Count how much the app is used<small>Tallies only — how many searches and routes
@@ -194,8 +198,8 @@
         <svg class="geo-mark" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2l1.8 8.2L22 12l-8.2 1.8L12 22l-1.8-8.2L2 12l8.2-1.8z"/></svg>
         <div class="geo-text">
           <b id="geoAskTitle">Show where you are</b>
-          <small>Directions start from where you're standing, so the map needs your location. It stays on
-            your phone — nothing about where you go is sent anywhere.</small>
+          <div id="geoAskText" class="geo-body"><p>Directions start from where you're standing, so the map needs
+            your location. It stays on your phone — nothing about where you go is sent anywhere.</p></div>
         </div>
         <div class="geo-row">
           <button id="geoYes" class="btn primary">Use my location</button>
