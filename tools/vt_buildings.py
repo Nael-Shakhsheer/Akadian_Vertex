@@ -197,8 +197,13 @@ def prepare():
 
 
 def _floor_labels(fid, off):
+    # A room on floor N is numbered N...: anything else read off that floor's plan isn't a room there. The third
+    # floor's sheet prints 2150 and 2150B, the upper part of a double-height space numbered (and entered) on
+    # floor 2, which no route on floor 3 can reach; and OCR read three bits of linework as 0000, 1000 and 6005.
+    # All five were published as floor-3 rooms. Floors 1 and 2 already follow the rule.
+    digit = str(next(f[2] for f in FLOORS if f[0] == fid))
     ls = [l for l in json.loads((TORG / f"ocr/{dict((f[0], f[3]) for f in FLOORS)[fid]}.labels.json").read_text())
-          if l["kind"] in ("room", "circulation")]
+          if l["kind"] == "circulation" or (l["kind"] == "room" and l["id"].startswith(digit))]
     for lid, kind, (cx, cy), floors in VERTICAL:
         if fid in floors:
             ls.append({"id": lid, "kind": kind, "x": round(cx + PAD + off[0]), "y": round(cy + PAD + off[1])})

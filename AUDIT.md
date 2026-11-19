@@ -83,7 +83,13 @@ script and only the compiled map (room outlines and labels) is published.
 - **M2, Virginia Tech bus times: blocked.** Every download from Blacksburg Transit's server arrived truncated,
   and the only intact copy expired in July. Shipping stale times would be worse than none. Needs a scheduled
   refresh from a machine that can reach the feed.
-- **New finding, not yet fixed:** the same every-room routing check over all six buildings found two rooms in
-  Torgersen Hall (third floor, 2150 and 2150B) that cannot be reached. All other buildings: every room reachable.
+- **Torgersen Hall, found by the same every-room check and fixed:** the third floor published five rooms that
+  aren't rooms there. 2150 and 2150B are second-floor numbers printed on the floor above (the upper part of a
+  double-height space, entered on floor 2), and no route could reach them; 0000, 1000 and 6005 were OCR reading
+  linework as numbers, and showed up in search as rooms. The Torgersen tool now keeps only numbers that start
+  with their floor's digit, which drops exactly those five; the rebuild changes nothing else (checked against
+  a rebuild of the untouched source, identical to within 2.5e-9).
+- **New test:** `tests/test_reach.mjs` routes to every room and restroom in every published building from its
+  entrances, on foot and step-free, through the app's own router — 1,068 of 1,068 today.
 - **Not done:** Exploratory Hall (OSM rooms without corridors or stairs) and the Data & Decision Sciences plans
   (no room numbers) — see §5.
