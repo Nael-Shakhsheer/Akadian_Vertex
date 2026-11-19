@@ -3,7 +3,7 @@
 A poster that shows a route ought to show a real one. This is a small Python port of the search in
 app/js/router.js -- the same run-length-encoded walk grids (0 blocked, 1 corridor, 2 inside a room),
 the same costs, the same stair and lift links between floors -- run over
-docs/data/buildings/gmu-jc.json. What the artwork draws is what Vertex would tell you to walk.
+docs/data/buildings/. What the artwork draws is what Vertex would tell you to walk.
 
 Kept deliberately simple next to the app: plain Dijkstra rather than the app's bidirectional A*, and
 no step-free option, because this runs once at build time over one building.
@@ -166,9 +166,9 @@ def simplify(pts, eps):
     return simplify(pts[:at + 1], eps)[:-1] + simplify(pts[at:], eps)
 
 
-def length_m(legs):
+def length_m(legs, key):
     """How far the walk actually is, on the flat, in metres -- so a caption can say so truthfully."""
-    per_px = brand.jc_raw()["mPerPx"]
+    per_px = brand.building_raw(key)["mPerPx"]
     total = 0.0
     for leg in legs:
         for a, b in zip(leg["pts"], leg["pts"][1:]):
@@ -176,19 +176,21 @@ def length_m(legs):
     return total * per_px
 
 
-def jc_route(to_room="218", from_entrance=0):
-    """Walk in the front door of the Johnson Center and up to a real group study room.
+def route_in(key, to_room, from_entrance=0):
+    """Walk in one of a building's real entrances and on to a real room, the way the app would.
 
-    Returns (legs, start_plan_point, goal_plan_point) in plan coordinates.
+    Returns (legs, start_plan_point, goal_plan_point) in plan coordinates. Raises if the room is not
+    in the data or there is no way to it, rather than quietly drawing something made up.
     """
-    import json
-    data = json.loads(brand.JC_DATA.read_text(encoding="utf-8"))
+    data = brand.building_raw(key)
+    room = brand.building_room(key, to_room)
+    if room is None:
+        raise ValueError("%s has no room %r -- the artwork will not invent one" % (key, to_room))
     p = Plan(data)
     ent = data["entrances"][from_entrance]
-    room = next(r for r in data["rooms"] if r["id"] == to_room)
     start_xy = tuple(ent["start"])
     goal_xy = brand.centroid(room["poly"])
     path = p.walk(p.to_cell(ent["floor"], *start_xy), p.to_cell(room["floor"], *goal_xy))
     if not path:
-        return None, start_xy, goal_xy
+        raise ValueError("no route from %s to %s %s" % (ent["name"], key, to_room))
     return p.legs(path), start_xy, goal_xy

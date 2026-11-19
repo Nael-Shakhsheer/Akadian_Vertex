@@ -1,93 +1,124 @@
 # Akadian Vertex — launch campaign copy
 
-Everything the campaign says, in one place. The artwork pulls the short strings from
-`campaign/copytext.py`, and `make_campaign.py` fails the build if a headline or a deck here stops
-matching what the posters set — so edit both, or edit here and run the build to find out where it
-broke.
+Everything the campaign says, in one place. The artwork pulls its strings from
+`campaign/copytext.py`, and `make_campaign.py` fails the build if any of them stops appearing here
+word for word — so edit both, or edit here and run the build to find out where it broke.
 
-## The two rules this copy is written under
+## What we are selling
 
-**No university marks, no implied endorsement.** The app ships campus initials as a monogram because
-George Mason's logos and wordmarks are not ours to use, and the campaign holds the same line. The
-university's name appears only descriptively — *a campus map for George Mason students* — never as a
-badge, never in a logo, never in a way that suggests the university made this or blessed it. Every
-printed piece carries, in small type at the foot:
+**The first week of classes.** Nobody knows where anything is, everyone is a little late, and the
+only tool anyone has is a maps app that drops them at the front of a building and says *you have
+arrived*. Vertex is the thing that keeps going.
+
+The line the whole campaign hangs on:
+
+> GPS gets you to the building. Vertex gets you to the room.
+
+## The three rules this copy is written under
+
+**Only claim what the app does.** Vertex uses live GPS outdoors: you see yourself on a 3D map of
+campus and it walks you to the best door for your room. Indoors, GPS does not work, so the app does
+not pretend — it routes you from the door you walk in, up the stairs and down the hallway to the
+room (`app/js/main.js` says so in its first two lines). So the copy says Vertex is *better than GPS
+because it keeps going where GPS can't*, which is true and is the stronger line anyway. It never
+says the phone knows where you are inside a building, and the build fails if any artwork does.
+
+**Be honest about the edge.** Room-by-room directions exist inside four buildings. Every other
+building on campus, Vertex gets you to the door. Wherever a piece promises "to the room", it either
+names the four buildings or carries the scope line:
+
+> Room by room inside Research Hall, Merten Hall, the Johnson Center and The HUB. Right to the door of every other building on campus.
+
+**No university marks, no invented numbers.** The app ships campus initials as a monogram because
+George Mason's logos and wordmarks are not ours to use. The university's name appears only
+descriptively, and every printed piece carries, at the foot:
 
 > An independent student project. Not affiliated with, endorsed or sponsored by George Mason
 > University.
 
-**No invented numbers.** There are no users yet, so there are no download counts, no star ratings, no
-testimonials and no awards anywhere in this campaign. Every figure that does appear is read out of
-the app's own data at build time and checked before a single pixel is drawn:
+There are no users yet, so there are no download counts, ratings, quotes or awards anywhere. Every
+figure that does appear is read out of the app's own data at build time:
 
 | Claim | Where it comes from |
 | --- | --- |
-| 23 group study rooms | `docs/data/buildings/gmu-jc.json` — rooms named *Group Study Room*: 3 on Floor 1, 8 on Floor 2, 12 on Floor 3 |
-| 320 rooms, 4 floors in the Johnson Center | the same file |
-| 4 buildings mapped indoors | `docs/data/campuses.json` — Johnson Center, Research Hall, Merten Hall, The HUB |
+| 4 buildings mapped inside, 633 rooms | every `docs/data/buildings/gmu-*.json` the app ships |
+| Research Hall, Merten Hall, the Johnson Center, The HUB | `docs/data/campuses.json` |
+| Research Hall 423, on the fourth floor | `docs/data/buildings/gmu-research.json` |
 | 163 buildings, 25 places to eat, 7 CUE routes, 26 stops | `docs/data/campus/gmu.json` |
 | the 2.5-second network deadline | `NET_TIMEOUT` in `app/sw.js` |
-| "about 150 m and two floors up" | measured from the route the artwork draws, computed at build time |
+| the distances and floor counts in the route captions | measured from the route the artwork draws, at build time |
 
-The walk on the posters is not an illustration. It is the route the app's own search returns — the
-same grids, costs and stair links as `app/js/router.js` — from the Johnson Center's north entrance to
-group study room 320H on the third floor.
+The orange routes on the posters are not illustrations. They are what the app's own search returns —
+a port of `app/js/router.js` over the same walk grids, costs and stair links — from Research Hall's
+west door to room 423, and from the Johnson Center's west door to the computer lab in 342.
 
 ---
 
-## Poster headlines
+## Headlines
 
-**A · Indoor routing** (the lead concept — dark, Letter and Tabloid, and the feed post and banner)
+**A · Better than GPS** — the lead. Dark. Both posters, the feed post and the wide banner.
 
-> Find the room, not the building.
+> GPS stops at the door. Vertex doesn't.
 
-Deck: *Indoor, room-level walking directions through the Johnson Center: four floors, 320 rooms, and
-the walk from the front door to the door you actually want.*
+Deck: *Vertex uses live GPS to walk you across campus and pick the best door. Then it keeps going
+where GPS can't: up the right stairs, down the right hallway, to the room on your schedule.*
 
-Kicker: *3D campus maps · indoor directions*
-Pull line: *Every other campus map stops at the front door.*
+Kicker: *Live GPS · 3D campus · turn-by-turn inside*
+Tagline: *GPS gets you to the building. Vertex gets you to the room.*
 
-**B · Study rooms** (light, Letter and Tabloid, the half-page flyer, a feed post and a story)
+**B · Find your class** — the first-week hook. Light. Both posters, the feed post and the story.
 
-> Where is a free study room?
+> Research Hall 423? Found it.
 
-Deck: *The Johnson Center has 23 group study rooms across three floors. Vertex knows where every one
-of them is, and walks you to the door.*
+Deck: *Type the building and room number off your schedule. Vertex finds it, picks the best door,
+and walks you there, floor by floor. Your first week, minus the wandering.*
 
-Kicker: *23 group study rooms · Johnson Center*
-Pull line: *23 group study rooms. Vertex walks you to one.*
+Kicker: *First week of classes*
+Pull line, and the story's headline: *Walk in like you've been here for years.*
 
-**C · Offline** (dark, a story and a banner)
+The search in the artwork is the real one. The app matches every word you type against a room's
+number and its building's name, so *research hall 423* — the way it reads on a schedule — finds it.
+The result shows *Room 423*, *Research Hall · Floor 4* and *Best entrance:* with the door's name,
+exactly as the app does.
+
+**B, on the handout** — the half-page flyer.
+
+> Don't be the one walking in at 9:07.
+
+Deck: *Type the room off your schedule. Vertex walks you there on live GPS, picks the best door, and
+takes you inside, floor by floor, to the room.*
+
+**C · Offline** — dark. A story and a banner.
 
 > No bars. Still works.
 
-Deck: *Campus wi-fi does not fail, it hangs. Vertex gives the network 2.5 seconds, then draws the map
-already sitting on your phone.*
+Deck: *Campus wi-fi doesn't fail, it hangs, usually in a stairwell four minutes before class. Vertex
+gives the network 2.5 seconds, then uses the map already on your phone.*
 
 Kicker: *Built for bad campus wi-fi*
 Pull line: *The map is already on your phone.*
 
-**D · No install** (dark, the quarter-page flyer, a feed post and a story)
+**D · No install** — dark. The quarter-page flyer, a feed post and a story.
 
 > No app store. Just add it.
 
-Deck: *Vertex is a web page, not a download. Open the link, add it to your home screen, and it opens
-full-screen like any other app.*
+Deck: *Vertex is a website that works like an app. Add it to your home screen before your first
+class: no download, no account, and it opens full-screen.*
 
 Kicker: *No install · no account · no download*
 Pull line: *No app store. No account. No download.*
 
-### The three things it does, everywhere
+### What it does, everywhere
 
-- **Room-level indoors** — Four buildings mapped floor by floor: the Johnson Center, Research Hall, Merten Hall and The HUB.
-- **Works on bad wi-fi** — A map you have opened stays on your phone, so a dead spot in a stairwell does not strand you.
-- **Nothing to install** — No app store and no account. Open the link and add it to your home screen.
-- **The rest of campus too** — 163 buildings, 25 places to eat, and 7 CUE routes across 26 stops.
+- **Live GPS outside** — Watch yourself move on a 3D map of campus, and get walked to the best door for your room.
+- **Turn-by-turn inside** — Research Hall, Merten Hall, the Johnson Center and The HUB, mapped room by room: 633 rooms.
+- **Works on bad wi-fi** — A map you have opened stays on your phone, so a dead stairwell can't strand you.
+- **All of campus** — 163 buildings, 25 places to eat, and 7 CUE routes across 26 stops.
 
 Cut to one line each, for posters and anywhere else read at a glance:
 
-- **Room-level indoors** — Johnson Center, Research Hall, Merten Hall, The HUB.
-- **Works on bad wi-fi** — A map you have opened stays on your phone.
+- **Live GPS outside** — Walks you to the best door for your room.
+- **Turn-by-turn inside** — Research Hall, Merten, the JC and The HUB.
 - **Nothing to install** — No app store, no account. Add it to your home screen.
 
 Sign-off line: *Akadian Vertex · a 3D campus map for George Mason students*
@@ -96,96 +127,101 @@ Sign-off line: *Akadian Vertex · a 3D campus map for George Mason students*
 
 ## Social captions
 
-Four variants. One per concept, so a week of posts does not read like the same sentence four times.
-Each is written to stand on its own if the image never loads.
+Five variants, one per angle, so a week of posts never reads like the same sentence twice. Each
+stands on its own if the image never loads. Written to sound like a student, because one wrote it.
 
-### 1 — Indoor routing (pairs with `a-indoor-feed-1080` or `a-indoor-banner-1600x900`)
+### 1 — GPS stops at the door (pairs with `a-gps-feed-1080` or `a-gps-banner-1600x900`)
 
-> Campus maps are great right up until you are inside the building.
+> Your maps app: "You have arrived."
+> You: outside Research Hall, class in four minutes, no idea where 423 is.
 >
-> Akadian Vertex maps the Johnson Center floor by floor — all four levels, 320 rooms — and gives you
-> walking directions to the actual door. Front entrance to third-floor study room, turn by turn.
+> Vertex picks up where GPS gives out. Live GPS across campus, the best door for your room, then
+> turn-by-turn inside — up the stairs, down the hall, to the actual room.
 >
-> It is a web page. No app store, no account. Link in bio.
+> Free. No app store. Link in bio.
 >
-> #GeorgeMason #GMU #Mason2031 #PatriotLife #FairfaxVA #CampusLife #StudentBuilt #WebDev
+> #GMU #GeorgeMason #MasonNation #FirstWeek #SpringSemester #CollegeLife #CampusMap
 
-### 2 — Study rooms (pairs with `b-studyrooms-feed-1080` or `b-studyrooms-story-1080x1920`)
+### 2 — Found it (pairs with `b-findclass-feed-1080`)
 
-> There are 23 group study rooms in the JC. Three on the first floor, eight on the second, twelve on
-> the third.
+> Syllabus week checklist:
+> ☐ buy the textbook you'll never open
+> ☐ find Research Hall 423
 >
-> Knowing that is the easy part. Vertex is the part that walks you to one — indoors, floor by floor,
-> to the right door.
+> We can help with one of those. Type the room off your schedule and Vertex walks you there, floor
+> by floor.
 >
-> Opens in your browser. Add it to your home screen and it behaves like an app.
->
-> #GeorgeMason #GMU #JohnsonCenter #StudySpot #FinalsPrep #MasonNation #CampusMap
+> #GMU #GeorgeMason #SyllabusWeek #FirstDayOfClasses #Freshman #TransferStudent #CollegeLife
 
-### 3 — Offline (pairs with `c-offline-story-1080x1920` or `c-offline-banner-1600x900`)
+### 3 — Walk in like you've been here for years (pairs with `b-findclass-story-1080x1920`)
 
-> Campus wi-fi does not fail. It hangs — one bar, nothing loading, and you are standing in a stairwell
-> guessing.
+> 9:00 class. 9:07 and you're on the wrong floor of the right building.
 >
-> Vertex gives the network two and a half seconds. After that it draws the map it already has on your
-> phone and gets on with it.
+> Not this semester. GPS to the door, turn-by-turn to the room. Never get lost finding a class
+> again.
 >
+> #GMU #GeorgeMason #SpringSemester #FirstWeek #MasonNation
+
+### 4 — No bars (pairs with `c-offline-story-1080x1920` or `c-offline-banner-1600x900`)
+
+> One bar. Nothing loading. Stairwell. Class in four minutes.
+>
+> Vertex gives campus wi-fi two and a half seconds, then just uses the map already on your phone.
 > Built for the wi-fi we actually have.
 >
-> #GMU #GeorgeMason #CampusWifi #PWA #OfflineFirst #StudentBuilt #MasonNation
+> #GMU #GeorgeMason #CampusWifi #CollegeLife #StudentBuilt
 
-### 4 — No install (pairs with `d-install-feed-1080` or `d-install-story-1080x1920`)
+### 5 — Just add it (pairs with `d-install-feed-1080` or `d-install-story-1080x1920`)
 
-> No app store. No account. No 180 MB download for a map.
+> No app store. No account. No download.
 >
-> Open the link, hit Add to Home Screen, and Akadian Vertex sits on your phone like any other app —
-> full-screen, and it still works when the wi-fi gives up.
+> Open the link, hit Add to Home Screen, and Vertex sits on your phone like any other app. Do it
+> before your first class and thank yourself at 8:58.
 >
-> 3D campus map, indoor directions to the room, CUE routes and somewhere to eat.
->
-> #GeorgeMason #GMU #PatriotLife #AddToHomeScreen #WebApp #CampusLife #SpringSemester
+> #GMU #GeorgeMason #FirstWeek #AddToHomeScreen #CollegeHacks
 
 **On hashtags.** Keep the first three or four — they are the ones GMU students actually browse. The
-rest are padding and can go. Do not use any tag that reads as an official university account or
-programme.
+rest are padding. Never use a tag that reads as an official university account or programme.
 
 ---
 
 ## Reddit — r/gmu
 
 Post as yourself, not as a brand. Flair it as a project or a resource if the subreddit has one, and
-read the self-promotion rules before posting. Reply to every comment for the first day.
+read the self-promotion rules first. Post it the weekend before classes start, and answer every
+comment that day.
 
-**Title:** I built a 3D campus map that gives you walking directions to the room, not just the building
+**Title:** I made a campus map that gets you to the actual room, not just the building — might help
+the first week
 
 **Body:**
 
-> I am a student here and I got tired of campus maps that drop you at a front door and wish you luck.
-> So over the last few weeks I built Akadian Vertex: a 3D map of campus where the Johnson Center,
-> Research Hall, Merten Hall and The HUB are mapped indoors, floor by floor, and you can ask for
-> directions to an actual room number and get a walking route that goes in the door, down the right
-> corridor and up the right stairs.
+> Every semester I watch people (me included) stand outside Research Hall at 8:58 with a maps app
+> that says "you have arrived" and no idea where their room is. GPS gets you to the building and
+> then gives up.
 >
-> The JC is the one I have put the most into — four floors, 320 rooms, including all 23 group study
-> rooms. Search a room, and it routes you there from whichever entrance you are closest to.
+> So I built Akadian Vertex. You type the room off your schedule — "research hall 423" works — and it
+> walks you there on live GPS, picks the best door for that room, and then gives you turn-by-turn
+> directions inside: which stairs, which floor, which hallway, which door.
 >
-> Two things that might matter more than the 3D:
+> To be straight about what it does and does not do:
 >
-> - It works on bad wi-fi. It is a progressive web app: it gives the network 2.5 seconds, then falls
->   back to the copy of the map already on your phone.
-> - There is nothing to install. It is a web page. Open it, Add to Home Screen, and it opens
+> - Room-by-room directions work inside Research Hall, Merten Hall, the Johnson Center and The HUB
+>   (633 rooms). Every other building on campus, it gets you to the door. More buildings as I map
+>   them.
+> - It does not pretend to track you indoors — GPS does not work in there. Outside it uses your
+>   location; inside it routes from the door you came in by, floor by floor.
+> - It works on bad wi-fi. It is a progressive web app: it gives the network 2.5 seconds, then uses
+>   the copy of the map already on your phone.
+> - There is nothing to install. It is a website. Open it, Add to Home Screen, and it opens
 >   full-screen like an app. No account, no app store.
 >
-> Also on there: 163 buildings across campus, 25 places to eat, and the CUE routes and stops.
+> Also on there: 163 buildings, 25 places to eat, and the CUE routes and stops.
 >
-> It is not official and it is not affiliated with the university — it is just mine, and it is free.
-> The floor plans came from public sources and OpenStreetMap, so if a room is wrong or missing, tell
-> me and I will fix it. Virginia Tech has Torgersen Hall mapped too, but Mason is where the work has
-> gone.
+> It is not official and not affiliated with the university — it is mine and it is free. The floor
+> plans came from public sources, so if a room is wrong or missing, tell me and I will fix it.
 >
 > Link: [URL]
->
-> Happy to answer anything about how the indoor routing works.
 
 ---
 
@@ -193,24 +229,25 @@ read the self-promotion rules before posting. Reply to every comment for the fir
 
 Two sentences, no jargon, nothing for them to vouch for:
 
-> One of your classmates has built a free 3D campus map called Akadian Vertex that gives walking
-> directions to a specific room inside the Johnson Center and three other buildings, and it works
-> offline on campus wi-fi.
+> One of your classmates has built a free campus map called Akadian Vertex that takes you to a
+> specific room, not just the building — handy this week if you are still finding your classes.
 >
-> It is a web page rather than an app — there is a poster outside with a code on it, or you can add
+> It is a website rather than an app; there is a code on the posters around campus, or you can add
 > it to your home screen in a couple of taps.
 
 **If you are the one asking:** email the professor the two sentences, say plainly that it is your own
-project and not a university one, and offer to drop it if they would rather not. A professor who
-reads this out is lending you their credibility; make it easy for them to say no.
+project and not a university one, and offer to drop it if they would rather not.
 
 ---
 
 ## Words to avoid
 
+- **Indoor GPS**, *knows where you are inside*, *tracks you through the building* — the app does
+  not do indoor positioning, and the build rejects artwork that says so. Say *turn-by-turn inside*
+  or *floor by floor from the door*.
+- **Any room on campus** — rooms are mapped in four buildings. Say *every building, and every room
+  in four of them*, or name the four.
 - *Official*, *the campus app*, *partnered with*, *approved* — none of these are true.
 - The university's logo, seal, wordmark, or colours used as if they were ours.
-- *Trusted by students*, *everyone is using it*, star ratings, download counts — there is no usage
-  data yet. Sell what it does, not an audience it does not have.
-- *Never lose your way again*, *revolutionary*, *game-changing*. The product is specific; the copy
-  should be too.
+- *Trusted by students*, *everyone is using it*, ratings, download counts — there is no usage data
+  yet. Sell what it does, not an audience it does not have.

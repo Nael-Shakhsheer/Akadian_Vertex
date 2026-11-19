@@ -11,7 +11,6 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 MARK_SVG = ROOT / "app/icons/mark.svg"
 CINZEL = ROOT / "app/vendor/fonts/cinzel-600-latin.woff2"
-JC_DATA = ROOT / "docs/data/buildings/gmu-jc.json"
 CAMPUS_DATA = ROOT / "docs/data/campus/gmu.json"
 
 # ---------------------------------------------------------------- palette
@@ -95,56 +94,56 @@ FAMILY_SANS_BLACK = "Sans-Black"
 
 
 # ---------------------------------------------------------------- real campus geometry
-_JC_RAW = None
+# The George Mason buildings the app maps indoors, by the key the campaign uses for each.
+BUILDING_DIR = ROOT / "docs/data/buildings"
+BUILDINGS = {"jc": "gmu-jc.json", "research": "gmu-research.json",
+             "merten": "gmu-merten.json", "hub": "gmu-hub.json"}
+_RAW = {}
 
 
-def jc_raw():
-    """The Johnson Center data file, loaded once."""
-    global _JC_RAW
-    if _JC_RAW is None:
-        _JC_RAW = json.loads(JC_DATA.read_text(encoding="utf-8"))
-    return _JC_RAW
+def building_raw(key):
+    """A building's data file exactly as the app loads it, read once."""
+    if key not in _RAW:
+        _RAW[key] = json.loads((BUILDING_DIR / BUILDINGS[key]).read_text(encoding="utf-8"))
+    return _RAW[key]
 
 
-def jc_room(room_id):
-    """One room by its real number, as the app has it."""
-    return next((r for r in jc_raw()["rooms"] if r["id"] == room_id), None)
+def building_room(key, room_id):
+    """One room by its real number, as the app has it -- or None, so a caller can refuse to draw
+    a room that does not exist."""
+    return next((r for r in building_raw(key)["rooms"] if r["id"] == room_id), None)
 
 
-def jc_plan():
-    """The Johnson Center's real indoor geometry and counts, read from the app's data.
-
-    Returns a dict with the four floors (slab outline, room polygons, the walkable area) in plan
-    coordinates, plus the counts the copy is allowed to quote.
-    """
-    d = json.loads(JC_DATA.read_text(encoding="utf-8"))
+def building_plan(key):
+    """A building's floors (slab outline, room polygons, the walkable area) in plan coordinates."""
+    d = building_raw(key)
 
     def rings(entry):
-        """A space/slab entry as [(outer, [holes])] with flat coordinate lists paired up."""
+        """A space/slab entry as (outer, [holes]) with flat coordinate lists paired up."""
         pair = lambda flat: [(flat[i], flat[i + 1]) for i in range(0, len(flat), 2)]
         return pair(entry["o"]), [pair(h) for h in entry.get("h", [])]
 
-    floors = []
-    for f in d["floors"]:
-        slab = [rings(s) for s in f["slab"]]
-        rooms = [rings(s) for s in f["spaces"]]
-        ids = {s["id"]: rings(s) for s in f["spaces"] if s.get("id")}
-        floors.append({"id": f["id"], "name": f["name"], "level": f["level"],
-                       "slab": slab, "rooms": rooms, "by_id": ids,
-                       "walk": [rings(w) for w in f["walk"]]})
+    floors = [{"id": f["id"], "name": f["name"], "level": f["level"],
+               "slab": [rings(x) for x in f["slab"]],
+               "rooms": [rings(x) for x in f["spaces"]]} for f in d["floors"]]
+    return {"key": key, "name": d["building"].get("name", key), "floors": floors,
+            "entrances": d["entrances"], "mPerPx": d["mPerPx"]}
 
-    study = [r for r in d["rooms"] if (r.get("name") or "") == "Group Study Room"]
-    by_floor = {}
-    for r in study:
-        by_floor[r["floor"]] = by_floor.get(r["floor"], 0) + 1
-    return {
-        "floors": floors,
-        "entrances": d["entrances"],
-        "n_rooms": sum(1 for r in d["rooms"] if r.get("kind") == "room"),
-        "n_study": len(study),
-        "study_by_floor": by_floor,
-        "study_ids": sorted(r["id"] for r in study),
-    }
+
+def indoor_counts():
+    """What the app maps indoors at George Mason: how many buildings, how many rooms.
+
+    Counted over every gmu-*.json the app ships, not just the ones the campaign draws, so a building
+    added to the app changes these numbers -- and the build stops until the copy agrees.
+    """
+    files = sorted(BUILDING_DIR.glob("gmu-*.json"))
+    rooms = 0
+    for f in files:
+        d = json.loads(f.read_text(encoding="utf-8"))
+        rooms += sum(1 for r in d["rooms"] if r.get("kind") == "room")
+    named = json.loads((ROOT / "docs/data/campuses.json").read_text(encoding="utf-8"))
+    gmu = next(c for c in named if c["id"] == "gmu")
+    return {"buildings": len(files), "rooms": rooms, "named": gmu["indoor"]}
 
 
 def campus_counts():

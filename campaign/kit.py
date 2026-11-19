@@ -1,5 +1,6 @@
 """The campaign's shared furniture: themes, the logo lockup, the QR placeholder, chips, rules,
-and the two pieces of real artwork -- the stacked Johnson Center floor plates and the study-room grid.
+and the real artwork -- a building's stacked floor plates with the app's own route through them,
+and the app's search as it actually answers.
 
 Every design in designs.py is assembled out of these, so a change to the lockup or the QR block
 lands on all twenty-odd pieces at once.
@@ -39,13 +40,17 @@ def theme(name):
                  room=mix(bg, ink, 0.21), room_line=mix(bg, ink, 0.34), void=bg,
                  skirt=mix(bg, ink, 0.05), hairline=mix(bg, ink, 0.22),
                  accent_dim=mix(bg, p["accent"], 0.38), paper="#ffffff", paper_ink="#15171c")
+        p["plate_line"] = p["hairline"]
     else:
+        # on paper the plates need real contrast: a pale grey slab, near-white rooms with a firm
+        # outline and a darker edge, or the building disappears into the page
         p = dict(brand.LIGHT)
         bg, ink = p["bg"], p["text"]
-        p.update(panel=mix(bg, ink, 0.045), panel2=mix(bg, ink, 0.09), plate=mix(bg, ink, 0.05),
-                 room="#ffffff", room_line=mix(bg, ink, 0.30), void=mix(bg, ink, 0.09),
-                 skirt=mix(bg, ink, 0.11), hairline=mix(bg, ink, 0.18),
-                 accent_dim=mix(bg, p["accent"], 0.22), paper="#ffffff", paper_ink="#15171c")
+        p.update(panel=mix(bg, ink, 0.045), panel2=mix(bg, ink, 0.09), plate=mix(bg, ink, 0.085),
+                 room=mix(bg, ink, 0.015), room_line=mix(bg, ink, 0.36), void=mix(bg, ink, 0.16),
+                 skirt=mix(bg, ink, 0.26), hairline=mix(bg, ink, 0.18),
+                 accent_dim=mix(bg, p["accent"], 0.22), paper="#ffffff", paper_ink="#15171c",
+                 plate_line=mix(bg, ink, 0.42))
     p["name"] = name
     return p
 
@@ -168,58 +173,93 @@ def feature(d, x, y, w, title, body, th, size=11, icon=None):
 
 
 # ---------------------------------------------------------------- artwork: the floor stack
-_PLAN = None
-_ROUTE = None
+class Scene:
+    """One real walk through one real building: the plan, the route, and what to call each end.
+
+    The route is computed by route.py over the app's own walk grids; a room that is not in the data,
+    or one with no way to it, raises instead of being drawn.
+    """
+
+    def __init__(self, key, room, entrance, room_tag, room_sub, levels=None):
+        self.key = key
+        self.levels = levels      # which floors to draw (indexes); None draws them all
+        self.plan = brand.building_plan(key)
+        self.room_id = room
+        self.room = brand.building_room(key, room)
+        self.entrance = self.plan["entrances"][entrance]
+        self.legs, self.start, self.goal = route.route_in(key, room, entrance)
+        self.room_tag, self.room_sub = room_tag, room_sub
+        self.metres = route.length_m(self.legs, key)
+
+    @property
+    def door_name(self):
+        return self.entrance["name"].split(" (")[0]
 
 
-def jc():
-    global _PLAN
-    if _PLAN is None:
-        _PLAN = brand.jc_plan()
-    return _PLAN
+_SCENES = {}
 
 
-# The walk the artwork shows. 320H is a real, single group study room on the third floor (the plan
-# leaves some of the suites undivided, so a room with its own four walls makes a truthful highlight),
-# and entrance 0 is the north door, which gives the longest walk across the first floor.
-DEST_ROOM = "320H"
-DEST_ENTRANCE = 0
-DEST_CAPTION = ("North entrance", "Group study room · Floor 3")
+def scene(name):
+    """The two walks the campaign draws, built once.
 
+    gps  the Johnson Center, in the west door and up to the computer lab in 342 on the third floor:
+         the "GPS stops at the door" pieces. The ground floor is left out -- the walk never uses it,
+         and without it the door faces open space, where the GPS approach can be seen.
+    find Research Hall, in the west door by the rotunda and up three floors to room 423: the "find
+         your class" pieces, and the room the search-bar mock types
 
-def jc_route():
-    """The real walk: in the north door, across the first floor, up two floors, to room 320H."""
-    global _ROUTE
-    if _ROUTE is None:
-        _ROUTE = route.jc_route(DEST_ROOM, from_entrance=DEST_ENTRANCE)
-    return _ROUTE
+    Both doors were chosen because they face the viewer in the drawing; the walks are whatever the
+    app's search returns from them.
+    """
+    if name not in _SCENES:
+        if name == "gps":
+            _SCENES[name] = Scene("jc", "342", 3, "342", "Room 342 \u00b7 Computer lab \u00b7 Floor 3",
+                                  levels=(1, 2, 3))
+        elif name == "find":
+            _SCENES[name] = Scene("research", "423", 1, "423", "Room 423 \u00b7 Floor 4")
+        else:
+            raise KeyError(name)
+    return _SCENES[name]
 
 
 class Iso:
     """Plan coordinates -> an axonometric view of the stacked floors, auto-fitted to a box."""
 
-    def __init__(self, box, rot_deg=-24.0, squash=0.50, lift_frac=0.30, levels=4):
+    def __init__(self, box, sc, rot_deg=-24.0, squash=0.50, lift_frac=0.30, levels=None,
+                 approach=0.0):
         self.rot = math.radians(rot_deg)
         self.squash = squash
-        plan = jc()
+        self.sc = sc
+        floors = sc.plan["floors"]
+        levels = levels if levels is not None else sc.levels
+        levels = list(levels) if levels is not None else list(range(len(floors)))
+        self.levels = levels
         xs, ys = [], []
-        for f in plan["floors"]:
-            for outer, _ in f["slab"]:
-                xs += [p[0] for p in outer]
-                ys += [p[1] for p in outer]
+        for lv in levels:
+            for outer, _ in floors[lv]["slab"]:
+                xs += [q[0] for q in outer]
+                ys += [q[1] for q in outer]
         self.span_y = max(ys) - min(ys)
+        self.span = max(max(xs) - min(xs), self.span_y)
         self.lift = self.span_y * lift_frac
-        pts = [self._raw(x, y, lv) for lv in range(levels) for x, y in
-               ((min(xs), min(ys)), (max(xs), min(ys)), (min(xs), max(ys)), (max(xs), max(ys)))]
-        px0 = min(p[0] for p in pts)
-        px1 = max(p[0] for p in pts)
-        py0 = min(p[1] for p in pts)
-        py1 = max(p[1] for p in pts)
+        corners = [(min(xs), min(ys)), (max(xs), min(ys)), (min(xs), max(ys)), (max(xs), max(ys))]
+        pts = [self._raw(x, y, i) for i in range(len(levels)) for x, y in corners]
+        if approach:
+            # leave room for the GPS approach drawn outside the door
+            pts += [self._raw(x, y, self.level_of(sc.entrance["floor"])) for x, y in
+                    [approach_point(sc, self.span * approach)]]
+        px0, px1 = min(q[0] for q in pts), max(q[0] for q in pts)
+        py0, py1 = min(q[1] for q in pts), max(q[1] for q in pts)
         bx, by, bw, bh = box
         self.s = min(bw / (px1 - px0), bh / (py1 - py0))
         self.ox = bx + (bw - (px1 - px0) * self.s) / 2 - px0 * self.s
         self.oy = by + (bh - (py1 - py0) * self.s) / 2 - py0 * self.s
         self.box = box
+
+    def level_of(self, floor_id):
+        """Where a floor sits in the drawn stack (0 at the bottom)."""
+        ids = [self.sc.plan["floors"][lv]["id"] for lv in self.levels]
+        return ids.index(floor_id)
 
     def _raw(self, x, y, level):
         c, s = math.cos(self.rot), math.sin(self.rot)
@@ -233,77 +273,125 @@ class Iso:
         return [self(x, y, level) for x, y in pts]
 
 
-def floor_stack(d, iso, th, levels=(0, 1, 2, 3), show_route=True, show_rooms=True,
-                floor_labels=True, label_size=8.0, callouts=True, thickness=0.028):
-    """The Johnson Center's real floor plans, stacked. Plate, rooms, atrium voids, then the route.
+def approach_point(sc, dist):
+    """A point `dist` plan-units straight out from the scene's door, along the real door direction
+    (the entrance's inside point to its door point, both from the app's data)."""
+    (dx, dy), (sx, sy) = sc.entrance["plan"], sc.entrance["start"]
+    vx, vy = dx - sx, dy - sy
+    n = math.hypot(vx, vy) or 1.0
+    return (dx + vx / n * dist, dy + vy / n * dist)
 
-    Geometry is read from docs/data/buildings/gmu-jc.json at build time; nothing here is traced or
-    drawn by hand.
+
+def callout(d, x, y, lines, th, border, gap, side="right", margin=0.0):
+    """A small panel of stacked lines beside a marker at (x, y), with a short leader to it.
+
+    `lines` is [(text, family, size, colour, tracking_em, upper)]. The panel sits on the right of the
+    marker unless that would cross the page margin, in which case it goes left. It has a solid
+    background, so it stays legible over the floor plates.
     """
-    plan = jc()
+    sets = [(t.upper() if up else t, f, z, c, z * em) for t, f, z, c, em, up in lines]
+    pad = sets[0][2] * 0.7
+    w = max(render.measure(f, z, t, tr) for t, f, z, c, tr in sets) + pad * 2
+    h = sum(z * 1.28 for _, _, z, _, _ in sets) + pad * 1.2
+    if side == "right" and x + gap + w > d.w - margin:
+        side = "left"
+    px = x + gap if side == "right" else x - gap - w
+    py = y - h / 2
+    d.line(x, y, px if side == "right" else px + w, y, border, max(0.5, sets[0][2] * 0.06))
+    d.rect(px, py, w, h, th["bg"], rx=pad * 0.8, stroke=border, stroke_width=max(0.5, sets[0][2] * 0.07))
+    yy = py + pad * 0.6
+    for t, f, z, c, tr in sets:
+        yy += z * 1.08
+        d.text(px + pad, yy, t, f, z, c, tracking=tr)
+        yy += z * 0.20
+    return side
+
+
+def floor_stack(d, iso, th, gps=True, show_rooms=True, floor_labels=True, label_size=8.0,
+                callouts=True, thickness=0.028, gps_side="right", room_side="right"):
+    """A building's real floor plans, stacked, with the real walk threaded through them.
+
+    With `gps`, the walk starts outside: a white GPS dot and a dashed approach to the door, then
+    the orange Vertex route on from the door to the room. The picture is the tagline -- GPS gets
+    you to the building, Vertex gets you to the room. Geometry comes from docs/data/buildings/ at
+    build time; nothing is traced or drawn by hand.
+    """
+    sc = iso.sc
+    floors = sc.plan["floors"]
     skirt = iso.span_y * thickness * iso.squash * iso.s
-    legs, start_xy, goal_xy = jc_route() if show_route else (None, None, None)
-    by_floor = {l["floor"]: l["pts"] for l in (legs or [])}
-    level_of = {f["id"]: i for i, f in enumerate(plan["floors"])}
-    goal_room = brand.jc_room(DEST_ROOM) if show_route else None
+    legs = sc.legs
+    lvl = iso.level_of
 
     # the plates, bottom up, so an upper floor overlaps the one below it
-    for lv in levels:
-        f = plan["floors"][lv]
+    for i, lv in enumerate(iso.levels):
+        f = floors[lv]
         for outer, holes in f["slab"]:
-            side = iso.ring(outer, lv)
+            side = iso.ring(outer, i)
             d.polygon([(x, y + skirt) for x, y in side], th["skirt"])
-            d.polygon(side, th["plate"], stroke=th["hairline"], stroke_width=0.6)
+            d.polygon(side, th["plate"], stroke=th["plate_line"], stroke_width=0.6)
             for h in holes:
-                d.polygon(iso.ring(h, lv), th["void"])
+                d.polygon(iso.ring(h, i), th["void"])
         if show_rooms:
             for outer, holes in f["rooms"]:
-                d.polygon(iso.ring(outer, lv), th["room"], stroke=th["room_line"], stroke_width=0.35)
+                d.polygon(iso.ring(outer, i), th["room"], stroke=th["room_line"], stroke_width=0.35)
                 for h in holes:
-                    d.polygon(iso.ring(h, lv), th["plate"])
-        if goal_room is not None and level_of.get(goal_room["floor"]) == lv:
-            d.polygon(iso.ring(goal_room["poly"], lv), th["accent_dim"],
+                    d.polygon(iso.ring(h, i), th["plate"])
+        if sc.room["floor"] == f["id"]:
+            d.polygon(iso.ring(sc.room["poly"], i), th["accent_dim"],
                       stroke=th["accent"], stroke_width=max(0.5, iso.s * 3))
         if floor_labels:
-            # hang the label off the plate's leftmost projected corner, across all its slab pieces
-            proj = [p for outer, _ in f["slab"] for p in iso.ring(outer, lv)]
-            lx, ly = min(proj, key=lambda p: p[0])
+            proj = [q for outer, _ in f["slab"] for q in iso.ring(outer, i)]
+            lx, ly = min(proj, key=lambda q: q[0])
             label(d, lx - label_size * 1.1, ly + label_size * 0.34, f["name"], label_size, th,
                   fill=th["muted"], anchor="end", em=0.16)
 
-    # the walk, drawn over the whole stack: an exploded view, so the path threads up through it
-    if show_route and legs:
-        wide = max(1.8, iso.s * 13)
-        # a halo under the line, so a leg that passes over the plate above still reads as floating
-        for i, leg in enumerate(legs):
-            lv = level_of[leg["floor"]]
-            if len(leg["pts"]) > 1:
-                d.polyline(iso.ring(leg["pts"], lv), th["bg"], wide * 2.0, cap="round", join="round")
-        for i, leg in enumerate(legs):
-            lv = level_of[leg["floor"]]
-            if len(leg["pts"]) > 1:
-                d.polyline(iso.ring(leg["pts"], lv), th["accent"], wide, cap="round", join="round")
-            if i + 1 < len(legs):
-                nxt = legs[i + 1]
-                a = iso(leg["pts"][-1][0], leg["pts"][-1][1], lv)
-                b = iso(nxt["pts"][0][0], nxt["pts"][0][1], level_of[nxt["floor"]])
-                d.polyline([a, b], th["accent"], wide * 0.62,
-                           dash="%.1f %.1f" % (wide * 1.15, wide * 0.95), cap="round")
-        sx, sy = iso(start_xy[0], start_xy[1], level_of[legs[0]["floor"]])
-        gx, gy = iso(goal_xy[0], goal_xy[1], level_of[legs[-1]["floor"]])
-        d.circle(sx, sy, wide * 1.05, th["bg"], stroke=th["accent"], stroke_width=wide * 0.5)
-        diamond(d, gx, gy, wide * 2.1, th["accent"])
-        if callouts:
-            cs = max(6.5, iso.s * 34)
-            label(d, sx, sy + cs * 1.75, DEST_CAPTION[0], cs, th, fill=th["text"], em=0.09)
-            # the destination tag sits to the right of the marker unless that would run off the page
-            tag_w = max(render.measure(BOLD, cs * 1.3, DEST_ROOM),
-                        render.measure(BOLD, cs * 0.82, DEST_CAPTION[1].upper(), cs * 0.82 * 0.07))
-            flip = gx + cs * 0.9 + tag_w > d.w - max(cs * 2.0, d.w * 0.045)
-            tx, anchor = (gx - cs * 0.9, "end") if flip else (gx + cs * 0.9, "start")
-            d.text(tx, gy - cs * 0.26, DEST_ROOM, BOLD, cs * 1.3, th["accent"], anchor=anchor)
-            label(d, tx, gy + cs * 0.98, DEST_CAPTION[1], cs * 0.82, th,
-                  fill=th["muted"], anchor=anchor, em=0.07)
+    wide = max(1.8, iso.s * 13)
+    ent_lv = lvl(sc.entrance["floor"])
+    door = iso(sc.entrance["plan"][0], sc.entrance["plan"][1], ent_lv)
+    first = iso(sc.start[0], sc.start[1], lvl(legs[0]["floor"]))
+    gx, gy = iso(sc.goal[0], sc.goal[1], lvl(legs[-1]["floor"]))
+    cs = max(6.5, iso.s * 34)
+
+    # GPS: from you, outside, to the door -- dashed, in the plain text colour
+    if gps:
+        out = approach_point(sc, iso.span * 0.16)
+        ux, uy = iso(out[0], out[1], ent_lv)
+        d.polyline([(ux, uy), door, first], th["text"], wide * 0.62,
+                   dash="%.1f %.1f" % (wide * 0.9, wide * 1.1), cap="round")
+        d.circle(ux, uy, wide * 3.2, mix(th["bg"], th["text"], 0.16))
+        d.circle(ux, uy, wide * 1.35, th["text"], stroke=th["bg"], stroke_width=wide * 0.45)
+
+    # Vertex: the door to the room, over the whole stack, haloed so it reads as floating
+    for leg in legs:
+        if len(leg["pts"]) > 1:
+            d.polyline(iso.ring(leg["pts"], lvl(leg["floor"])), th["bg"], wide * 2.0,
+                       cap="round", join="round")
+    for i, leg in enumerate(legs):
+        lv = lvl(leg["floor"])
+        if len(leg["pts"]) > 1:
+            d.polyline(iso.ring(leg["pts"], lv), th["accent"], wide, cap="round", join="round")
+        if i + 1 < len(legs):
+            nxt = legs[i + 1]
+            a = iso(leg["pts"][-1][0], leg["pts"][-1][1], lv)
+            b = iso(nxt["pts"][0][0], nxt["pts"][0][1], lvl(nxt["floor"]))
+            d.polyline([a, b], th["accent"], wide * 0.62,
+                       dash="%.1f %.1f" % (wide * 1.15, wide * 0.95), cap="round")
+    d.circle(first[0], first[1], wide * 1.05, th["bg"], stroke=th["accent"], stroke_width=wide * 0.5)
+    diamond(d, gx, gy, wide * 2.1, th["accent"])
+
+    if callouts:
+        margin = max(cs * 2.0, d.w * 0.045)
+        if gps:
+            # where GPS gives out: at you, outside, on the way to the door
+            callout(d, ux, uy, [("GPS", BOLD, cs * 1.05, th["text"], 0.14, True),
+                                ("gets you to the door", SANS, cs * 0.92, th["muted"], 0.0, False)],
+                    th, th["hairline"], gap=wide * 4.2, side=gps_side, margin=margin)
+        else:
+            label(d, first[0], first[1] + cs * 1.75, sc.door_name, cs, th, fill=th["text"], em=0.09)
+        callout(d, gx, gy, [("Vertex", BOLD, cs * 1.25, th["accent"], 0.14, True),
+                            ("gets you to the room", SANS, cs * 0.92, th["text"], 0.0, False),
+                            (sc.room_sub, BOLD, cs * 0.78, th["muted"], 0.07, True)],
+                th, th["accent"], gap=wide * 3.4, side=room_side, margin=margin)
     return legs
 
 
@@ -312,44 +400,55 @@ def diamond(d, cx, cy, r, fill):
     d.polygon([(cx, cy - r), (cx + r, cy), (cx, cy + r), (cx - r, cy)], fill)
 
 
-# ---------------------------------------------------------------- artwork: the study-room grid
-STUDY_ROWS = [("Floor 1", ["118", "119", "120"]),
-              ("Floor 2", ["218", "219A", "219B", "219C", "219D", "226B", "226C", "226D"]),
-              ("Floor 3", ["314", "315A", "315B", "315C", "315D", "320A", "320B", "320C",
-                           "320D", "320E", "320F", "320H"])]
+# ---------------------------------------------------------------- artwork: the search, as the app shows it
+def magnifier(d, cx, cy, r, colour, weight):
+    d.circle(cx, cy, r, "none", stroke=colour, stroke_width=weight)
+    k = r * 0.72
+    d.line(cx + k, cy + k, cx + k + r * 0.85, cy + k + r * 0.85, colour, weight * 1.15, cap="round")
 
 
-def study_grid(d, x, y, w, th, cols=6, gap=None, pick="320C", size=None, show_rows=True,
-               max_tile=None):
-    """Every group study room in the Johnson Center, by its real number, one tile each.
+def search_card(d, x, y, w, th, sc, query=None, size=12, ui="dark"):
+    """The app's own search, typed the way a schedule reads, with the answer it gives.
 
-    The room numbers come from docs/data/buildings/gmu-jc.json -- the same 23 rooms the app routes to.
+    Every string matches the real interface (app/js/main.js): the room result's meta line is
+    "<building> - <floor>", and the route line reads "Best entrance: <name>". The query is the
+    building and room number; the app matches every word against the room's id and building name,
+    so this is a search that actually works.
     """
-    plan = jc()
-    assert sum(len(ids) for _, ids in STUDY_ROWS) == plan["n_study"], "study-room list drifted from the data"
-    gap = gap if gap is not None else w * 0.018
-    tile = (w - gap * (cols - 1)) / cols
-    if max_tile:
-        tile = min(tile, max_tile)      # a cap, so the grid cannot grow taller than its slot
-    size = size or tile * 0.30
-    cy = y
-    for floor_name, ids in STUDY_ROWS:
-        if show_rows:
-            label(d, x, cy, "%s · %d rooms" % (floor_name, len(ids)), size * 0.78, th, em=0.16)
-            cy += size * 1.25
-        for i, rid in enumerate(ids):
-            col, row = i % cols, i // cols
-            tx, ty = x + col * (tile + gap), cy + row * (tile * 0.74 + gap)
-            hot = rid == pick
-            d.rect(tx, ty, tile, tile * 0.74, th["accent"] if hot else th["panel"],
-                   rx=tile * 0.10, stroke=None if hot else th["hairline"], stroke_width=0.7)
-            d.text(tx + tile / 2, ty + tile * 0.47, rid, BOLD, size,
-                   th["paper_ink"] if hot else th["text"], anchor="middle")
-            if hot:
-                diamond(d, tx + tile / 2, ty + tile * 0.62, size * 0.26, th["paper_ink"])
-        rows = (len(ids) + cols - 1) // cols
-        cy += rows * (tile * 0.74 + gap) + gap * 1.4
-    return cy - gap * 1.4
+    u = theme(ui)
+    query = query or "%s %s" % (sc.plan["name"].lower(), sc.room_id)
+    floor = next(f["name"] for f in sc.plan["floors"] if f["id"] == sc.room["floor"])
+    pad = size * 1.15
+    h_bar = size * 3.3
+    # the panel the search lives on
+    total_h = h_bar + size * 9.0
+    d.rect(x, y, w, total_h, u["panel"], rx=size * 1.1, stroke=u["hairline"], stroke_width=max(0.6, size * 0.05))
+    # the search field
+    fx, fy, fw = x + pad, y + pad, w - pad * 2
+    d.rect(fx, fy, fw, h_bar, u["bg"], rx=h_bar / 2, stroke=u["accent"], stroke_width=max(0.8, size * 0.11))
+    magnifier(d, fx + h_bar * 0.52, fy + h_bar * 0.46, size * 0.52, u["muted"], max(0.7, size * 0.11))
+    tx = fx + h_bar * 0.98
+    d.text(tx, fy + h_bar * 0.64, query, SANS, size * 1.15, u["text"])
+    cw = render.measure(SANS, size * 1.15, query)
+    d.line(tx + cw + size * 0.25, fy + h_bar * 0.26, tx + cw + size * 0.25, fy + h_bar * 0.76,
+           u["accent"], max(0.8, size * 0.1))
+    # the result row
+    ry = fy + h_bar + size * 1.3
+    diamond(d, fx + size * 0.9, ry + size * 1.25, size * 0.55, u["accent"])
+    d.text(fx + size * 2.3, ry + size * 1.1, "Room %s" % sc.room_id, BOLD, size * 1.25, u["text"])
+    d.text(fx + size * 2.3, ry + size * 2.55, "%s \u00b7 %s" % (sc.plan["name"], floor), SANS, size,
+           u["muted"])
+    # the answer: the best door, and the button that starts the walk
+    rule(d, fx, ry + size * 4.0, fw, u)
+    by = ry + size * 5.9
+    d.text(fx, by, "Best entrance: ", SANS, size, u["muted"])
+    bw = render.measure(SANS, size, "Best entrance: ")
+    d.text(fx + bw, by, sc.entrance["name"], BOLD, size, u["text"])
+    gw =render.measure(BOLD, size * 1.05, "Go") + size * 2.6
+    d.rect(fx + fw - gw, by - size * 1.25, gw, size * 2.3, u["accent"], rx=size * 1.15)
+    d.text(fx + fw - gw / 2, by + size * 0.2, "Go", BOLD, size * 1.05,
+           u["paper_ink"] if ui == "dark" else "#ffffff", anchor="middle")
+    return y + total_h
 
 
 # ---------------------------------------------------------------- artwork: offline + home screen

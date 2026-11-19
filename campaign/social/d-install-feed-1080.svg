@@ -11,23 +11,21 @@
 <text x="250.831" y="108" font-family="Cinzel" font-size="13.8" fill="#f0a04a" letter-spacing="9.2">VERTEX</text>
 <text x="78" y="218" font-family="Cinzel" font-size="72" fill="#f2f3f5" letter-spacing="2.88">NO APP STORE.</text>
 <text x="78" y="295.76" font-family="Cinzel" font-size="72" fill="#f2f3f5" letter-spacing="2.88">JUST ADD IT.</text>
-<text x="78" y="357.76" font-family="Sans" font-size="23" fill="#9aa0aa">Vertex is a web page, not a download. Open the link,</text>
-<text x="78" y="391.34" font-family="Sans" font-size="23" fill="#9aa0aa">add it to your home screen, and it opens full-screen</text>
-<text x="78" y="424.92" font-family="Sans" font-size="23" fill="#9aa0aa">like any other app.</text>
+<text x="78" y="357.76" font-family="Sans" font-size="23" fill="#9aa0aa">Vertex is a website that works like an app. Add it to</text>
+<text x="78" y="391.34" font-family="Sans" font-size="23" fill="#9aa0aa">your home screen before your first class: no</text>
+<text x="78" y="424.92" font-family="Sans" font-size="23" fill="#9aa0aa">download, no account, and it opens full-screen.</text>
 <circle cx="97.32" cy="491.78" r="19.32" fill="#f0a04a"/>
 <text x="97.32" y="498.92" font-family="Sans-Black" font-size="22.05" fill="#15171c" text-anchor="middle">1</text>
 <text x="134.028" y="492.62" font-family="Sans-Bold" font-size="21.42" fill="#f2f3f5">Open the link</text>
-<text x="134.028" y="518.87" font-family="Sans" font-size="18.9" fill="#9aa0aa">Scan the code, or type the address into your phone's</text>
-<text x="134.028" y="544.196" font-family="Sans" font-size="18.9" fill="#9aa0aa">browser.</text>
-<circle cx="97.32" cy="561.78" r="19.32" fill="#f0a04a"/>
-<text x="97.32" y="568.92" font-family="Sans-Black" font-size="22.05" fill="#15171c" text-anchor="middle">2</text>
-<text x="134.028" y="562.62" font-family="Sans-Bold" font-size="21.42" fill="#f2f3f5">Add to Home Screen</text>
-<text x="134.028" y="588.87" font-family="Sans" font-size="18.9" fill="#9aa0aa">In Safari, tap Share. In Chrome, tap the three dots.</text>
-<circle cx="97.32" cy="631.78" r="19.32" fill="#f0a04a"/>
-<text x="97.32" y="638.92" font-family="Sans-Black" font-size="22.05" fill="#15171c" text-anchor="middle">3</text>
-<text x="134.028" y="632.62" font-family="Sans-Bold" font-size="21.42" fill="#f2f3f5">Open it like an app</text>
-<text x="134.028" y="658.87" font-family="Sans" font-size="18.9" fill="#9aa0aa">Full-screen, no browser bar, and it still works on bad</text>
-<text x="134.028" y="684.196" font-family="Sans" font-size="18.9" fill="#9aa0aa">wi-fi.</text>
+<text x="134.028" y="518.87" font-family="Sans" font-size="18.9" fill="#9aa0aa">Scan the code, or type the address into your phone's browser.</text>
+<circle cx="97.32" cy="571.78" r="19.32" fill="#f0a04a"/>
+<text x="97.32" y="578.92" font-family="Sans-Black" font-size="22.05" fill="#15171c" text-anchor="middle">2</text>
+<text x="134.028" y="572.62" font-family="Sans-Bold" font-size="21.42" fill="#f2f3f5">Add to Home Screen</text>
+<text x="134.028" y="598.87" font-family="Sans" font-size="18.9" fill="#9aa0aa">In Safari, tap Share. In Chrome, tap the three dots.</text>
+<circle cx="97.32" cy="651.78" r="19.32" fill="#f0a04a"/>
+<text x="97.32" y="658.92" font-family="Sans-Black" font-size="22.05" fill="#15171c" text-anchor="middle">3</text>
+<text x="134.028" y="652.62" font-family="Sans-Bold" font-size="21.42" fill="#f2f3f5">Open it like an app</text>
+<text x="134.028" y="678.87" font-family="Sans" font-size="18.9" fill="#9aa0aa">Full-screen, no browser bar, and it still works on bad wi-fi.</text>
 <rect x="712" y="250" width="290" height="560" rx="39.15" fill="#585a5e"/>
 <rect x="718.38" y="256.38" width="277.24" height="547.24" rx="32.77" fill="#16181d"/>
 <rect x="816.4" y="263.398" width="81.2" height="15.95" rx="8.12" fill="#0b0c0e"/>
@@ -65,7 +63,7 @@
 <rect x="86.84" y="854.84" width="86.32" height="86.32" fill="none" stroke="#d7d8d8" stroke-width="1.036"/>
 <text x="130" y="903.179" font-family="Sans-Black" font-size="13.449" fill="#d7d8d8" letter-spacing="3.539" text-anchor="middle">QR</text>
 <text x="130" y="915.264" font-family="Sans-Bold" font-size="6.512" fill="#d7d8d8" letter-spacing="1.557" text-anchor="middle">PLACEHOLDER</text>
-<text x="206" y="890" font-family="Sans-Bold" font-size="24" fill="#f2f3f5">No app store. No account. No download.</text>
-<text x="206" y="926" font-family="Sans" font-size="21" fill="#9aa0aa">Open the link and keep it on your home screen.</text>
+<text x="206" y="890" font-family="Sans-Bold" font-size="24" fill="#f2f3f5">Add it before your first class.</text>
+<text x="206" y="926" font-family="Sans" font-size="20" fill="#9aa0aa">GPS gets you to the building. Vertex gets you to the room.</text>
 <text x="78" y="1016" font-family="Sans" font-size="13" fill="#9aa0aa">An independent student project. Not affiliated with, endorsed or sponsored by George Mason University.</text>
 </svg>

@@ -36,41 +36,64 @@ COPY_MD = HERE / "copy.md"
 # ---------------------------------------------------------------- the fact checks
 def check_numbers():
     """Every figure in the copy, against the data the app ships."""
-    plan = brand.jc_plan()
+    indoor = brand.indoor_counts()
     campus = brand.campus_counts()
     sw = (brand.ROOT / "app/sw.js").read_text(encoding="utf-8")
     timeout = int(re.search(r"NET_TIMEOUT\s*=\s*(\d+)", sw).group(1))
-    indoor = len(brand.json.loads((brand.ROOT / "docs/data/campuses.json")
-                                  .read_text(encoding="utf-8"))[0]["indoor"])
-    actual = {"study_rooms": plan["n_study"], "jc_rooms": plan["n_rooms"],
-              "jc_floors": len(plan["floors"]), "indoor_buildings": indoor,
+    rsch = brand.building_raw("research")
+    room = brand.building_room("research", "423")
+    actual = {"indoor_buildings": indoor["buildings"], "indoor_rooms": indoor["rooms"],
               "campus_buildings": campus["buildings"], "food": campus["food"],
               "cue_routes": campus["lines"], "cue_stops": campus["stops"],
-              "net_timeout_ms": timeout}
+              "net_timeout_ms": timeout, "rsch_floors": len(rsch["floors"]),
+              "rsch_room_423_floor": room["floor"] if room else None}
     bad = {k: (v, actual[k]) for k, v in T.numbers_claimed().items() if actual[k] != v}
     if bad:
-        raise SystemExit("copy claims figures the data does not support: %s" % bad)
+        raise SystemExit("copy claims figures the data does not support (claimed, actual): %s" % bad)
+    # the buildings the copy names as mapped inside must be exactly the ones the app maps
+    named = {"Research Hall", "Merten Hall", "Johnson Center", "The HUB"}
+    if set(indoor["named"]) != named:
+        raise SystemExit("copy names %s as mapped indoors; the app maps %s"
+                         % (sorted(named), sorted(indoor["named"])))
+    # the drawn walks must exist -- building them raises if a room or a route is missing
+    for name in ("gps", "find"):
+        kit.scene(name)
     return actual
 
 
 def check_copy():
-    """Every headline and deck in copytext.py, word for word in copy.md."""
+    """Every string the artwork sets, word for word in copy.md."""
     if not COPY_MD.exists():
         raise SystemExit("campaign/copy.md is missing -- the artwork copy has nowhere to come from")
     # compared with whitespace collapsed, so copy.md can wrap its lines where it likes
     md = re.sub(r"\s+", " ", COPY_MD.read_text(encoding="utf-8"))
-    missing = []
-    for name in dir(T):
-        if not re.match(r"^[A-D]_(HEAD|DECK|SHORT|KICKER)$|^FEATURES(_SHORT)?$|^SIGNOFF$", name):
-            continue
-        val = getattr(T, name)
-        strings = ([" ".join(val)] if name.endswith("HEAD") else
-                   [t for pair in val for t in pair] if name.startswith("FEATURES") else [val])
-        for s in strings:
-            if re.sub(r"\s+", " ", s) not in md:
-                missing.append("%s: %s" % (name, s[:60]))
+    missing = [s[:70] for s in T.on_artwork() if re.sub(r"\s+", " ", s) not in md]
     if missing:
         raise SystemExit("copy.md and copytext.py have drifted:\n  " + "\n  ".join(missing))
+
+
+def check_claims():
+    """Nothing on the artwork may say the app knows where you are inside a building: it does not.
+    GPS is used outdoors; indoors the route starts from the door (app/js/main.js, lines 1-2)."""
+    banned = re.compile(r"indoor (gps|positioning|location)|where you are inside|"
+                        r"knows where you are|gps (inside|indoors)|tracks you inside", re.I)
+    for f in sorted(HERE.rglob("*.svg")):
+        text = " ".join(re.findall(r">([^<]*)<", f.read_text(encoding="utf-8")))
+        hit = banned.search(text)
+        if hit:
+            raise SystemExit("%s claims indoor positioning (%r) -- the app does not do that"
+                             % (f.name, hit.group(0)))
+
+
+def orphans():
+    """Rendered files in the output folders that no piece in designs.PIECES produces any more."""
+    keep = {(folder, name) for folder, name, _, _ in designs.PIECES}
+    out = []
+    for folder in sorted({f for f, _, _, _ in designs.PIECES}):
+        for f in sorted((HERE / folder).glob("*")):
+            if f.suffix in (".svg", ".png", ".pdf") and (folder, f.stem) not in keep:
+                out.append(f)
+    return out
 
 
 def check_marks():
@@ -121,9 +144,10 @@ def build(only=None, render_only=False):
     check_copy()
     fonts = render.font_report()
     print("Akadian Vertex - launch campaign")
-    print("  data   %d study rooms, %d rooms, %d floors in the Johnson Center; %d buildings on campus"
-          % (checks["study_rooms"], checks["jc_rooms"], checks["jc_floors"],
-             checks["campus_buildings"]))
+    print("  data   %d rooms mapped inside %d buildings; %d buildings on campus; walks: %s"
+          % (checks["indoor_rooms"], checks["indoor_buildings"], checks["campus_buildings"],
+             ", ".join("%s %s %d m" % (kit.scene(n).plan["name"], kit.scene(n).room_id,
+                                       round(kit.scene(n).metres)) for n in ("gps", "find"))))
     print("  fonts  " + ", ".join("%s: %s / %s (pdf)" % (k, a, b) for k, (a, b) in fonts.items()))
     print()
 
@@ -150,8 +174,14 @@ def build(only=None, render_only=False):
         print("  %-42s %-26s %4.1fs" % rows[-1])
 
     check_marks()
+    check_claims()
+    stale = orphans()
+    if stale:
+        print("\n  not made by any piece any more (delete them):")
+        for f in stale:
+            print("    " + str(f.relative_to(HERE)))
     print("\n  %d pieces. No university mark in any of them; every printed piece carries the "
-          "independence line." % len(rows))
+          "independence line; nothing claims indoor positioning." % len(rows))
     print("  QR squares are placeholders -- see campaign/README.md before printing.")
 
 
@@ -164,6 +194,7 @@ if __name__ == "__main__":
         check_numbers()
         check_copy()
         check_marks()
+        check_claims()
         print("checks pass")
         sys.exit(0)
     build(only=[a for a in args if not a.startswith("--")], render_only="--render" in args)
